@@ -1,0 +1,41 @@
+{
+  "name": "addwise-gps-tracker",
+  "version": "1.0.0",
+  "description": "A comprehensive GPS tracking system with QR code management",
+  "main": "server/server.js",
+  "scripts": {
+    "start": "node server/server.js",
+    "server": "nodemon server/server.js",
+    "client": "npm start --prefix client",
+    "dev": "concurrently \"npm run server\" \"npm run client\"",
+    "build": "npm run build --prefix client"
+  },
+  "keywords": [
+    "gps",
+    "tracking",
+    "qr",
+    "mern"
+  ],
+  "author": "Suman ",
+  "license": "MIT",
+  "dependencies": {
+    "@react-google-maps/api": "^2.18.1",
+    "axios": "^1.6.7",
+    "bcryptjs": "^2.4.3",
+    "bootstrap": "^5.3.6",
+    "cors": "^2.8.5",
+    "dotenv": "^10.0.0",
+    "express": "^4.17.1",
+    "express-validator": "^7.2.1",
+    "jsonwebtoken": "^9.0.2",
+    "mongoose": "^6.0.12",
+    "qrcode": "^1.5.4",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "react-scripts": "^5.0.1"
+  },
+  "devDependencies": {
+    "concurrently": "^6.3.0",
+    "nodemon": "^2.0.14"
+  }
+}

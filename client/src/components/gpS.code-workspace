@@ -1,0 +1,31 @@
+{
+	"folders": [
+		{
+			"path": "../../../../../../../../../xampp/htdocs/ADDWISEcopied"
+		},
+		{
+			"path": "../../../../DSA WITH C++"
+		},
+		{
+			"path": "../../../../DSA WITH C++/stl_libraries"
+		},
+		{
+			"path": "../../../../fullstack"
+		},
+		{
+			"path": "../../.."
+		}
+	],
+	"settings": {
+		"files.associations": {
+			"vector": "cpp",
+			"iostream": "cpp",
+			"ios": "cpp",
+			"xiosbase": "cpp",
+			"utility": "cpp",
+			"xutility": "cpp",
+			"map": "cpp"
+		},
+		"liveServer.settings.multiRootWorkspaceName": "react"
+	}
+}

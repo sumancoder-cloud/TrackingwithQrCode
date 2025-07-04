@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test API Connection</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .result { margin: 10px 0; padding: 10px; border-radius: 5px; }
+        .success { background-color: #d4edda; color: #155724; }
+        .error { background-color: #f8d7da; color: #721c24; }
+        button { padding: 10px 20px; margin: 5px; cursor: pointer; }
+    </style>
+</head>
+<body>
+    <h1>GPS Tracker API Connection Test</h1>
+    
+    <h3>Step 1: Test API Health</h3>
+    <button onclick="testHealth()">Test Health Check</button>
+    <div id="healthResult"></div>
+
+    <h3>Step 2: Register Test User</h3>
+    <button onclick="registerUser()">Register Test User</button>
+    <div id="registerResult"></div>
+
+    <h3>Step 3: Test Login</h3>
+    <button onclick="testLogin()">Test Login</button>
+    <div id="loginResult"></div>
+
+    <script>
+        const API_BASE = 'http://localhost:5001/api';
+
+        async function testHealth() {
+            const resultDiv = document.getElementById('healthResult');
+            resultDiv.innerHTML = 'Testing health check...';
+
+            try {
+                const response = await fetch(`${API_BASE}/auth/health`);
+                const data = await response.json();
+                
+                if (response.ok) {
+                    resultDiv.innerHTML = `<div class="result success">✅ Health Check Passed: ${data.message}</div>`;
+                } else {
+                    resultDiv.innerHTML = `<div class="result error">❌ Health Check Failed: ${data.message}</div>`;
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `<div class="result error">❌ Network Error: ${error.message}</div>`;
+            }
+        }
+
+        async function registerUser() {
+            const resultDiv = document.getElementById('registerResult');
+            resultDiv.innerHTML = 'Registering test user...';
+
+            const userData = {
+                username: 'testuser123',
+                email: 'testuser123@gpstracker.com',
+                password: 'TestPass123!',
+                confirmPassword: 'TestPass123!',
+                firstName: 'Test',
+                lastName: 'User',
+                role: 'user',
+                company: 'GPS Tracker Inc',
+                phone: '+91 9876543210',
+                agreeToTerms: true
+            };
+
+            try {
+                const response = await fetch(`${API_BASE}/auth/register`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(userData)
+                });
+
+                const data = await response.json();
+                
+                if (response.ok) {
+                    resultDiv.innerHTML = `<div class="result success">✅ Registration Successful!<br>Username: testuser123<br>Password: TestPass123!</div>`;
+                } else {
+                    resultDiv.innerHTML = `<div class="result error">❌ Registration Failed: ${data.message}</div>`;
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `<div class="result error">❌ Network Error: ${error.message}</div>`;
+            }
+        }
+
+        async function testLogin() {
+            const resultDiv = document.getElementById('loginResult');
+            resultDiv.innerHTML = 'Testing login...';
+
+            const loginData = {
+                username: 'testuser123',
+                password: 'TestPass123!'
+            };
+
+            try {
+                const response = await fetch(`${API_BASE}/auth/login`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(loginData)
+                });
+
+                const data = await response.json();
+                
+                if (response.ok) {
+                    resultDiv.innerHTML = `<div class="result success">✅ Login Successful!<br>Welcome: ${data.data.user.firstName} ${data.data.user.lastName}<br>Role: ${data.data.user.role}</div>`;
+                } else {
+                    resultDiv.innerHTML = `<div class="result error">❌ Login Failed: ${data.message}</div>`;
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `<div class="result error">❌ Network Error: ${error.message}</div>`;
+            }
+        }
+    </script>
+</body>
+</html>

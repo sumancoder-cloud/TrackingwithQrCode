@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Simple QR Code Test</title>
+    <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
+</head>
+<body>
+    <h1>Simple QR Code Test</h1>
+    <div id="qr-container"></div>
+    <div id="qr-data"></div>
+
+    <script>
+        // Create simple QR code with clean device ID
+        const simpleQRData = {
+            deviceId: "QR89026",
+            deviceName: "Test GPS Tracker",
+            timestamp: new Date().toISOString(),
+            createdBy: "test_user"
+        };
+
+        const qrDataString = JSON.stringify(simpleQRData);
+        
+        console.log('🔍 QR Data String:', qrDataString);
+        console.log('📏 Length:', qrDataString.length);
+        
+        // Display the data
+        document.getElementById('qr-data').innerHTML = `
+            <h3>QR Code Data:</h3>
+            <pre>${qrDataString}</pre>
+            <h3>Parsed Data:</h3>
+            <pre>${JSON.stringify(simpleQRData, null, 2)}</pre>
+            <h3>Device ID:</h3>
+            <p><strong>${simpleQRData.deviceId}</strong></p>
+        `;
+
+        // Generate QR code
+        QRCode.toCanvas(qrDataString, { width: 256 }, function (err, canvas) {
+            if (err) {
+                console.error('QR generation error:', err);
+                return;
+            }
+            
+            document.getElementById('qr-container').appendChild(canvas);
+            console.log('✅ QR Code generated successfully');
+            
+            // Test parsing
+            try {
+                const parsed = JSON.parse(qrDataString);
+                console.log('✅ Parsing test successful:', parsed);
+                console.log('📍 Device ID extracted:', parsed.deviceId);
+            } catch (e) {
+                console.error('❌ Parsing test failed:', e);
+            }
+        });
+
+        // Test the device ID extraction logic
+        function testDeviceIdExtraction(deviceId) {
+            console.log('\n🧪 Testing device ID extraction:');
+            console.log('Input:', deviceId);
+            console.log('Type:', typeof deviceId);
+            
+            let actualDeviceId = deviceId;
+            
+            if (typeof deviceId === 'string') {
+                if (deviceId.startsWith('{') && deviceId.includes('deviceId')) {
+                    try {
+                        const parsed = JSON.parse(deviceId);
+                        if (parsed.deviceId) {
+                            actualDeviceId = parsed.deviceId;
+                            console.log('🔧 Extracted from JSON string:', actualDeviceId);
+                        }
+                    } catch (e) {
+                        const match = deviceId.match(/"deviceId":"([^"]+)"/);
+                        if (match) {
+                            actualDeviceId = match[1];
+                            console.log('🔧 Extracted with regex:', actualDeviceId);
+                        }
+                    }
+                } else {
+                    console.log('✅ Using clean string:', actualDeviceId);
+                }
+            }
+            
+            console.log('Final result:', actualDeviceId);
+            return actualDeviceId;
+        }
+
+        // Test different scenarios
+        setTimeout(() => {
+            console.log('\n=== TESTING DEVICE ID EXTRACTION ===');
+            testDeviceIdExtraction('QR89026');
+            testDeviceIdExtraction('{"deviceId":"QR89026","deviceName":"Test"}');
+            testDeviceIdExtraction(qrDataString);
+        }, 1000);
+    </script>
+</body>
+</html>
