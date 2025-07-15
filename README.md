@@ -1,4 +1,4 @@
-# 🌍 GPS Tracker Application
+# 🌍 GPS Tracker Application(tati Suman Yadav)
 
 > A comprehensive, full-stack GPS tracking system with real-time location monitoring, QR code management, database-only authentication, and advanced mapping capabilities using Geoapify.
 
