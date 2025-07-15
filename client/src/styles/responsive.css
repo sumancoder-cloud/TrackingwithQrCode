@@ -1,0 +1,359 @@
+/* Global Responsive Styles for GPS Tracker */
+
+/* Base responsive setup */
+* {
+  box-sizing: border-box;
+}
+
+html, body {
+  overflow-x: hidden;
+  max-width: 100vw;
+  margin: 0;
+  padding: 0;
+  position: relative;
+}
+
+/* Prevent layout shifts */
+.row {
+  margin: 0 !important;
+  max-width: 100% !important;
+}
+
+.col, [class*="col-"] {
+  padding-left: 15px;
+  padding-right: 15px;
+  max-width: 100%;
+  position: relative;
+}
+
+/* Sidebar fixes */
+.sidebar-column {
+  position: relative !important;
+  flex-shrink: 0 !important;
+  min-height: calc(100vh - 80px) !important;
+}
+
+/* Main content fixes */
+.main-content-area {
+  flex: 1 1 auto !important;
+  max-width: 100% !important;
+  overflow-x: hidden !important;
+  position: relative !important;
+}
+
+/* Container fixes */
+.container-fluid {
+  padding-left: 15px;
+  padding-right: 15px;
+  max-width: 100%;
+  overflow-x: hidden;
+}
+
+/* DevTools responsive handling */
+@media (max-height: 600px) {
+  .navbar {
+    padding: 0.25rem 0 !important;
+  }
+  
+  .navbar-brand {
+    font-size: 1rem !important;
+  }
+  
+  .modal-dialog {
+    margin: 0.5rem !important;
+    max-height: 95vh !important;
+  }
+  
+  .modal-content {
+    max-height: 90vh !important;
+    overflow-y: auto !important;
+  }
+  
+  .card-body {
+    padding: 0.5rem !important;
+  }
+  
+  .btn {
+    padding: 0.25rem 0.5rem !important;
+    font-size: 0.875rem !important;
+  }
+}
+
+/* Mobile responsive */
+@media (max-width: 768px) {
+  .main-content-area {
+    margin-left: 0 !important;
+    width: 100% !important;
+    padding: 0.25rem !important;
+  }
+  
+  .sidebar {
+    position: fixed !important;
+    top: 80px !important;
+    left: -100% !important;
+    width: 280px !important;
+    height: calc(100vh - 80px) !important;
+    z-index: 1050 !important;
+    transition: left 0.3s ease !important;
+    background: white !important;
+    box-shadow: 2px 0 10px rgba(0,0,0,0.1) !important;
+  }
+  
+  .sidebar.show {
+    left: 0 !important;
+  }
+  
+  .table-responsive {
+    font-size: 0.875rem;
+  }
+  
+  .btn-group {
+    flex-direction: column;
+  }
+  
+  .btn-group .btn {
+    margin-bottom: 0.25rem;
+  }
+}
+
+/* Small mobile devices */
+@media (max-width: 576px) {
+  .container-fluid {
+    padding-left: 10px;
+    padding-right: 10px;
+  }
+  
+  .card {
+    margin-bottom: 0.75rem;
+  }
+  
+  .card-body {
+    padding: 0.75rem;
+  }
+  
+  .btn {
+    padding: 0.5rem 0.75rem;
+    font-size: 0.875rem;
+  }
+  
+  .modal-dialog {
+    margin: 0.25rem;
+    max-width: calc(100vw - 0.5rem);
+  }
+  
+  h1 { font-size: 1.75rem; }
+  h2 { font-size: 1.5rem; }
+  h3 { font-size: 1.25rem; }
+  h4 { font-size: 1.1rem; }
+  h5 { font-size: 1rem; }
+  h6 { font-size: 0.9rem; }
+}
+
+/* QR Scanner responsive */
+#qr-reader {
+  width: 100% !important;
+  max-width: 100% !important;
+  height: auto !important;
+  min-height: 250px !important;
+}
+
+#qr-reader video {
+  width: 100% !important;
+  height: auto !important;
+  max-width: 100% !important;
+}
+
+#qr-reader__dashboard {
+  background: transparent !important;
+}
+
+#qr-reader__scan_region {
+  border: 2px solid #007bff !important;
+  border-radius: 8px !important;
+}
+
+@media (max-width: 768px) {
+  #qr-reader {
+    min-height: 200px !important;
+  }
+}
+
+@media (max-width: 576px) {
+  #qr-reader {
+    min-height: 180px !important;
+  }
+}
+
+/* Map container responsive */
+.map-container {
+  width: 100%;
+  height: 400px;
+  max-width: 100%;
+  overflow: hidden;
+}
+
+@media (max-width: 768px) {
+  .map-container {
+    height: 300px;
+  }
+}
+
+@media (max-width: 576px) {
+  .map-container {
+    height: 250px;
+  }
+}
+
+/* Table responsive */
+.table-responsive {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.table {
+  min-width: 600px;
+}
+
+@media (max-width: 768px) {
+  .table {
+    font-size: 0.875rem;
+  }
+  
+  .table th,
+  .table td {
+    padding: 0.5rem;
+  }
+}
+
+/* Form responsive */
+.form-control,
+.form-select {
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+.input-group {
+  flex-wrap: wrap;
+}
+
+@media (max-width: 576px) {
+  .input-group > * {
+    margin-bottom: 0.25rem;
+  }
+}
+
+/* Button responsive */
+.btn {
+  word-wrap: break-word;
+  white-space: normal;
+}
+
+@media (max-width: 576px) {
+  .btn-group {
+    flex-direction: column;
+    width: 100%;
+  }
+  
+  .btn-group .btn {
+    margin-bottom: 0.25rem;
+    width: 100%;
+  }
+}
+
+/* Text utilities */
+.text-truncate-responsive {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+@media (max-width: 576px) {
+  .text-truncate-responsive {
+    white-space: normal;
+    word-wrap: break-word;
+  }
+}
+
+/* Utility classes for responsive design */
+.w-100-mobile {
+  width: 100% !important;
+}
+
+@media (min-width: 768px) {
+  .w-100-mobile {
+    width: auto !important;
+  }
+}
+
+.p-mobile {
+  padding: 0.5rem !important;
+}
+
+@media (min-width: 768px) {
+  .p-mobile {
+    padding: 1rem !important;
+  }
+}
+
+/* DevTools height adjustment */
+@media (max-height: 500px) {
+  .main-content-area {
+    padding: 0.25rem !important;
+  }
+  
+  .card {
+    margin-bottom: 0.5rem !important;
+  }
+  
+  .card-body {
+    padding: 0.5rem !important;
+  }
+  
+  .map-container {
+    height: 200px !important;
+  }
+  
+  .modal-dialog {
+    max-height: 95vh !important;
+  }
+}
+
+/* Very small height (DevTools open) */
+@media (max-height: 400px) {
+  .navbar {
+    padding: 0.25rem 0 !important;
+  }
+  
+  .main-content-area {
+    padding: 0.25rem !important;
+  }
+  
+  .card-body {
+    padding: 0.25rem !important;
+  }
+  
+  .map-container {
+    height: 150px !important;
+  }
+  
+  .btn {
+    padding: 0.25rem 0.5rem !important;
+    font-size: 0.75rem !important;
+  }
+}
+
+/* Landscape mobile orientation */
+@media (max-height: 500px) and (orientation: landscape) {
+  .sidebar {
+    width: 250px !important;
+  }
+  
+  .main-content-area {
+    padding: 0.25rem !important;
+  }
+  
+  .modal-dialog {
+    margin: 0.25rem !important;
+    max-height: 95vh !important;
+  }
+}

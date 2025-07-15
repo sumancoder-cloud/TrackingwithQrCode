@@ -112,7 +112,7 @@ class ApiService {
   async register(userData) {
     console.log('📝 Register attempt:', userData.username, userData.email);
 
-    const response = await this.post('/auth/register', userData);
+    const response = await this.post('/api/auth/register', userData);
 
     console.log('✅ Register response:', response);
 
@@ -126,7 +126,7 @@ class ApiService {
       }
 
       if (user) {
-        localStorage.setItem('currentUser', JSON.stringify(user));
+        localStorage.setItem('userData', JSON.stringify(user));
         console.log('👤 Registration user data stored');
       }
     }
@@ -136,11 +136,11 @@ class ApiService {
 
   async login(credentials) {
     console.log('🔐 API Service: Login attempt for:', credentials.username || credentials.email);
-    console.log('🌐 API Service: Making request to:', `${this.baseURL}/auth/login`);
+    console.log('🌐 API Service: Making request to:', `${this.baseURL}/api/auth/login`);
     console.log('📤 API Service: Request data:', credentials);
 
     try {
-      const response = await this.post('/auth/login', credentials);
+      const response = await this.post('/api/auth/login', credentials);
 
       console.log('✅ API Service: Login response received:', response);
 
@@ -154,7 +154,7 @@ class ApiService {
         }
 
         if (user) {
-          localStorage.setItem('currentUser', JSON.stringify(user));
+          localStorage.setItem('userData', JSON.stringify(user));
           console.log('👤 API Service: User data stored successfully');
         }
       }
@@ -169,7 +169,7 @@ class ApiService {
 
   async logout() {
     try {
-      await this.post('/auth/logout');
+      await this.post('/api/auth/logout');
     } catch (error) {
       console.error('Logout error:', error);
     } finally {
@@ -178,102 +178,114 @@ class ApiService {
   }
 
   async getCurrentUser() {
-    return this.get('/auth/me');
+    return this.get('/api/auth/me');
   }
 
   async updateProfile(profileData) {
-    return this.put('/auth/profile', profileData);
+    return this.put('/api/auth/profile', profileData);
   }
 
   async changePassword(passwordData) {
-    return this.put('/auth/change-password', passwordData);
+    return this.put('/api/auth/change-password', passwordData);
+  }
+
+  async sendQREmail(qrData, recipientEmail, deviceInfo) {
+    return this.post('/api/auth/send-qr-email', { qrData, recipientEmail, deviceInfo });
   }
 
   // Device APIs
   async submitDeviceRequest(requestData) {
-    return this.post('/devices/request', requestData);
+    return this.post('/api/devices/request', requestData);
+  }
+
+  async uploadUserDevice(deviceData) {
+    return this.post('/api/devices/user-upload', deviceData);
+  }
+
+  async checkDeviceExists(deviceCode) {
+    return this.get(`/api/devices/check/${deviceCode}`);
   }
 
   async getUserDeviceRequests(params = {}) {
     const queryString = new URLSearchParams(params).toString();
-    return this.get(`/devices/requests${queryString ? `?${queryString}` : ''}`);
+    return this.get(`/api/devices/requests${queryString ? `?${queryString}` : ''}`);
   }
 
   async getAllDeviceRequests(params = {}) {
     const queryString = new URLSearchParams(params).toString();
-    return this.get(`/devices/requests/all${queryString ? `?${queryString}` : ''}`);
+    return this.get(`/api/devices/requests/all${queryString ? `?${queryString}` : ''}`);
   }
 
   async approveDevice(requestId, deviceIndex) {
-    return this.put(`/devices/requests/${requestId}/devices/${deviceIndex}/approve`);
+    return this.put(`/api/devices/requests/${requestId}/devices/${deviceIndex}/approve`);
   }
 
   async rejectDevice(requestId, deviceIndex, reason) {
-    return this.put(`/devices/requests/${requestId}/devices/${deviceIndex}/reject`, { reason });
+    return this.put(`/api/devices/requests/${requestId}/devices/${deviceIndex}/reject`, { reason });
   }
 
   async getUserDevices() {
-    return this.get('/devices/my-devices');
+    return this.get('/api/devices/my-devices');
   }
 
   async getAllDevices(params = {}) {
     const queryString = new URLSearchParams(params).toString();
-    return this.get(`/devices${queryString ? `?${queryString}` : ''}`);
+    return this.get(`/api/devices${queryString ? `?${queryString}` : ''}`);
   }
 
   async getDevice(deviceId) {
-    return this.get(`/devices/${deviceId}`);
+    return this.get(`/api/devices/${deviceId}`);
   }
 
   async startDeviceTracking(deviceId) {
-    return this.put(`/devices/${deviceId}/start-tracking`);
+    return this.put(`/api/devices/${deviceId}/start-tracking`);
   }
 
   async stopDeviceTracking(deviceId) {
-    return this.put(`/devices/${deviceId}/stop-tracking`);
+    return this.put(`/api/devices/${deviceId}/stop-tracking`);
   }
 
   // Location APIs
   async updateDeviceLocation(deviceId, locationData) {
-    return this.post(`/locations/${deviceId}`, locationData);
+    return this.post(`/api/locations/${deviceId}`, locationData);
   }
 
   async getDeviceLocationHistory(deviceId, params = {}) {
     const queryString = new URLSearchParams(params).toString();
-    return this.get(`/locations/${deviceId}/history${queryString ? `?${queryString}` : ''}`);
+    return this.get(`/api/locations/${deviceId}/history${queryString ? `?${queryString}` : ''}`);
   }
 
   async getLatestDeviceLocation(deviceId) {
-    return this.get(`/locations/${deviceId}/latest`);
+    return this.get(`/api/locations/${deviceId}/latest`);
   }
 
   async getNearbyDevices(params = {}) {
     const queryString = new URLSearchParams(params).toString();
-    return this.get(`/locations/nearby${queryString ? `?${queryString}` : ''}`);
+    return this.get(`/api/locations/nearby${queryString ? `?${queryString}` : ''}`);
   }
 
   async addLocationAlert(deviceId, alertData) {
-    return this.post(`/locations/${deviceId}/alerts`, alertData);
+    return this.post(`/api/locations/${deviceId}/alerts`, alertData);
   }
 
   async acknowledgeAlert(deviceId, alertIndex) {
-    return this.put(`/locations/${deviceId}/alerts/${alertIndex}/acknowledge`);
+    return this.put(`/api/locations/${deviceId}/alerts/${alertIndex}/acknowledge`);
   }
 
   async getDeviceStats(deviceId, params = {}) {
     const queryString = new URLSearchParams(params).toString();
-    return this.get(`/locations/${deviceId}/stats${queryString ? `?${queryString}` : ''}`);
+    return this.get(`/api/locations/${deviceId}/stats${queryString ? `?${queryString}` : ''}`);
   }
 
   // QR Code APIs
   async getDeviceQRCode(deviceId) {
-    return this.get(`/qr/${deviceId}`);
+    return this.get(`/api/qr/${deviceId}`);
   }
 
   async getQRCodeImage(deviceId, params = {}) {
     const queryString = new URLSearchParams(params).toString();
-    const url = `${this.baseURL}/qr/${deviceId}/image${queryString ? `?${queryString}` : ''}`;
-    
+    const url = `${this.baseURL}/api/qr/${deviceId}/image${queryString ? `?${queryString}` : ''}`;
+
     const response = await fetch(url, {
       headers: { Authorization: `Bearer ${this.token}` }
     });
@@ -286,54 +298,105 @@ class ApiService {
   }
 
   async scanQRCode(qrData) {
-    return this.post('/qr/scan', { qrData });
+    return this.post('/api/qr/scan', { qrData });
   }
 
   async regenerateQRCode(deviceId, validityDays = 30) {
-    return this.put(`/qr/${deviceId}/regenerate`, { validityDays });
+    return this.put(`/api/qr/${deviceId}/regenerate`, { validityDays });
   }
 
   async deactivateQRCode(deviceId) {
-    return this.put(`/qr/${deviceId}/deactivate`);
+    return this.put(`/api/qr/${deviceId}/deactivate`);
   }
 
   async getQRCodeStats() {
-    return this.get('/qr/stats');
+    return this.get('/api/qr/stats');
   }
+
+  // Admin QR Code Management APIs
+  async getMyQRCodes(params = {}) {
+    const queryString = new URLSearchParams(params).toString();
+    return this.get(`/api/devices/admin/my-qr-codes${queryString ? `?${queryString}` : ''}`);
+  }
+
+  async generateQRCodes(data) {
+    return this.post('/api/devices/admin/generate-qr', data);
+  }
+
+  async deleteUnassignedQRCodes() {
+    return this.delete('/api/devices/admin/delete-unassigned-qr');
+  }
+
+  // Device Registration API
+  async registerDevice(deviceData) {
+    return this.post('/api/devices/register', deviceData);
+  }
+
+  // Scan History APIs
+  async saveScanHistory(scanHistoryData) {
+    return this.post('/api/scan-history/save', scanHistoryData);
+  }
+
+  async getScanHistory(username) {
+    return this.get(`/api/scan-history/user/${username}`);
+  }
+
+  // Location History APIs
+  async saveLocationHistory(locationData) {
+    return this.post('/api/location-history/save', locationData);
+  }
+
+  async getLocationHistory(deviceId, startDate = null, endDate = null, limit = 100) {
+    let url = `/api/location-history/device/${deviceId}?limit=${limit}`;
+    if (startDate) url += `&startDate=${startDate}`;
+    if (endDate) url += `&endDate=${endDate}`;
+    return this.get(url);
+  }
+
+  async getAvailableDatesForDevice(deviceId) {
+    return this.get(`/api/location-history/device/${deviceId}/dates`);
+  }
+
+  async getLocationHistoryForDate(deviceId, date) {
+    return this.get(`/api/location-history/device/${deviceId}/date/${date}`);
+  }
+
+  // Statistics APIs
+  // Note: getAllLocations endpoint doesn't exist, using fallback data in component
 
   // User Management APIs (Admin/SuperAdmin)
   async getAllUsers(params = {}) {
     const queryString = new URLSearchParams(params).toString();
-    return this.get(`/users${queryString ? `?${queryString}` : ''}`);
+    return this.get(`/api/users${queryString ? `?${queryString}` : ''}`);
   }
 
   async getUser(userId) {
-    return this.get(`/users/${userId}`);
+    return this.get(`/api/users/${userId}`);
   }
 
   async createUser(userData) {
-    return this.post('/users', userData);
+    return this.post('/api/users', userData);
   }
 
   async updateUser(userId, userData) {
-    return this.put(`/users/${userId}`, userData);
+    return this.put(`/api/users/${userId}`, userData);
   }
 
   async deleteUser(userId) {
-    return this.delete(`/users/${userId}`);
+    return this.delete(`/api/users/${userId}`);
   }
 
   async getUserActivity(userId) {
-    return this.get(`/users/${userId}/activity`);
+    return this.get(`/api/users/${userId}/activity`);
   }
 
   async resetUserPassword(userId, newPassword) {
-    return this.put(`/users/${userId}/reset-password`, { newPassword });
+    return this.put(`/api/users/${userId}/reset-password`, { newPassword });
   }
 
   // Health check
   async healthCheck() {
-    return this.get('/health');
+    return this.get('/api/health');
   }
 
   // Utility methods

@@ -15,9 +15,13 @@ mongoose.set('strictQuery', false);
 const authRoutes = require('./routes/auth');
 const userRoutes = require('./routes/users');
 const deviceRoutes = require('./routes/devices');
+const userDeviceRoutes = require('./routes/userDevices');
 const locationRoutes = require('./routes/locations');
 const qrRoutes = require('./routes/qr');
 const gpsRoutes = require('./routes/gpsRoutes');
+const emailRoutes = require('./routes/email');
+const scanHistoryRoutes = require('./routes/scanHistory');
+const locationHistoryRoutes = require('./routes/locationHistory');
 
 // Import middleware
 const { errorHandler } = require('./middleware/errorHandler');
@@ -57,28 +61,28 @@ mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/gpstracke
 .then(() => {
   console.log('✅ Connected to MongoDB');
   
-  // Create default admin user if none exists
-  createDefaultAdmin();
+  // Create default admin and super admin users if none exist
+  createDefaultUsers();
 })
 .catch((error) => {
   console.error('❌ MongoDB connection error:', error);
   process.exit(1);
 });
 
-// Create default admin user
-const createDefaultAdmin = async () => {
+// Create default admin and super admin users
+const createDefaultUsers = async () => {
   try {
     const User = require('./models/User');
-    const adminExists = await User.findOne({ role: 'admin' });
+    const bcrypt = require('bcryptjs');
     
+    // Create default admin user
+    const adminExists = await User.findOne({ role: 'admin' });
     if (!adminExists) {
-      const bcrypt = require('bcryptjs');
-      const hashedPassword = await bcrypt.hash('Admin@123', 12);
-      
+      const hashedAdminPassword = await bcrypt.hash('Admin@123', 12);
       const defaultAdmin = new User({
         username: 'admin',
         email: 'admin@assettrack.com',
-        password: hashedPassword,
+        password: hashedAdminPassword,
         role: 'admin',
         firstName: 'Admin',
         lastName: 'User',
@@ -86,12 +90,30 @@ const createDefaultAdmin = async () => {
         phone: '1234567890',
         isVerified: true
       });
-      
       await defaultAdmin.save();
       console.log('✅ Default admin user created');
     }
+    
+    // Create super admin user
+    const superAdminExists = await User.findOne({ username: 'superadmin' });
+    if (!superAdminExists) {
+      const hashedSuperAdminPassword = await bcrypt.hash('SuperAdmin@123', 12);
+      const superAdmin = new User({
+        username: 'superadmin',
+        email: 'superadmin@assettrack.com',
+        password: hashedSuperAdminPassword,
+        role: 'superadmin',
+        firstName: 'Super',
+        lastName: 'Admin',
+        company: 'Addwise Tracker',
+        phone: '1234567890',
+        isVerified: true
+      });
+      await superAdmin.save();
+      console.log('✅ Super admin user created');
+    }
   } catch (error) {
-    console.error('❌ Error creating default admin:', error);
+    console.error('❌ Error creating default users:', error);
   }
 };
 
@@ -109,9 +131,13 @@ app.get('/api/health', (req, res) => {
 app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/devices', deviceRoutes);
+app.use('/api/devices', userDeviceRoutes);
 app.use('/api/locations', locationRoutes);
 app.use('/api/qr', qrRoutes);
 app.use('/api/gps', gpsRoutes);
+app.use('/api/email', emailRoutes);
+app.use('/api/scan-history', scanHistoryRoutes);
+app.use('/api/location-history', locationHistoryRoutes);
 
 // Serve static assets if in production
 if (process.env.NODE_ENV === 'production') {

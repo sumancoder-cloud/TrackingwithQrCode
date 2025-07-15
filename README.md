@@ -1,104 +1,139 @@
-# 🌍 ADDWISE GPS Tracker
+# 🌍 GPS Tracker Application
 
-> A comprehensive, full-stack GPS tracking application with real-time location monitoring, QR code management, and multi-role authentication system.
+> A comprehensive, full-stack GPS tracking system with real-time location monitoring, QR code management, database-only authentication, and advanced mapping capabilities using Geoapify.
 
 [![React](https://img.shields.io/badge/React-18+-61DAFB?style=flat&logo=react&logoColor=white)](https://reactjs.org/)
 [![Node.js](https://img.shields.io/badge/Node.js-16+-339933?style=flat&logo=node.js&logoColor=white)](https://nodejs.org/)
+[![MongoDB](https://img.shields.io/badge/MongoDB-4.4+-47A248?style=flat&logo=mongodb&logoColor=white)](https://mongodb.com/)
 [![Bootstrap](https://img.shields.io/badge/Bootstrap-5-7952B3?style=flat&logo=bootstrap&logoColor=white)](https://getbootstrap.com/)
 [![License](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
-## 🚀 Live Demo
+## 🚀 Application Overview
 
-[**View Live Application**](your-deployed-url-here) | [**Figma Design**](https://www.figma.com/board/49hoyUBYUHItrS0RG32UvK/Untitled?t=QI2t9O0mf4NhGyLQ-)
+**Frontend**: http://localhost:3000
+**Backend API**: http://localhost:5001
+**Database**: MongoDB (gpstracker)
 
-## 📱 Features
+## ✨ Features
 
-### 🔐 Authentication System
-- **Multi-role Authentication** (User, Admin, Super Admin)
-- **Google OAuth Integration** with seamless sign-in
-- **Role-based Access Control** and secure routing
-- **Forgot Password** functionality
+### 🔐 Database-Only Authentication System
+- **Pure MongoDB Authentication**: No localStorage dependency
+- **JWT Token Security**: Secure token-based authentication with 30-second timeout handling
+- **Multi-Role Access Control**: User, Admin, and Super Admin roles
+- **Secure Password Management**: bcrypt hashing with password change functionality
+- **Account Management**: Profile updates, password changes, account deletion
+- **Token Verification**: Real-time database verification for all requests
 
-### 🌍 GPS Tracking
-- **Real-time Location Tracking** with high accuracy
-- **Enhanced GPS for Proddatur Region** with custom optimization
-- **Location History** tracking and storage
-- **GPS Debug Panel** for advanced analysis
+### 🌍 Advanced GPS Tracking & Mapping
+- **Geoapify Maps Integration**: Professional mapping with carto tile style
+- **Real-Time Location Tracking**: Live GPS coordinate updates with accuracy indicators
+- **Multiple Registration Methods**:
+  - 📷 Camera QR code scanning
+  - 📁 QR code image upload
+  - ⌨️ Manual 16-digit code entry
+- **Path Visualization**: Connected location points with red path lines
+- **Location History**: Chronological tracking with timestamps and coordinates
+- **Automatic Map Updates**: Real-time coordinate updates via Postman API testing
+- **Enhanced Timeout Handling**: 30-second GPS timeout with fallback to network location
 
-### 📱 QR Code Management
-- **Dynamic QR Code Generation** for devices
-- **Camera-based QR Scanning** with real-time detection
-- **Device Association** and comprehensive tracking
-- **Scan History Analytics** with detailed audit trails
+### 📱 Comprehensive QR Code System
+- **Admin QR Generation**: Admins generate QR codes and distribute via email/WhatsApp
+- **Smart Device Registration**: QR codes permanently assigned to users
+- **Duplicate Prevention**: Existing QR codes redirect directly to GPS tracking
+- **Device Association**: Automatic user-device linking with purpose/description storage
+- **Real-Time Scanning**: Immediate GPS location display after successful scan
 
-### 👨‍💼 Admin Dashboard
-- **Comprehensive Analytics** with real-time charts
-- **Device Request Management** with approval workflow
-- **User Management** with CRUD operations
-- **System Monitoring** and performance metrics
+### 👨‍💼 Advanced Admin Dashboard
+- **User Management**: Complete CRUD operations for all users from database
+- **QR Code Management**: Full CRUD operations with database cleanup features
+- **Device Oversight**: Monitor all registered devices with tracking history
+- **System Analytics**: Real-time user activity and device statistics
+- **Database Integration**: All admin functions connected to MongoDB
 
-### 🎨 Professional UI/UX
-- **Responsive Design** for all screen sizes
-- **Professional Interface** with clean, modern styling
-- **Mobile-first Approach** with touch-friendly controls
-- **Accessibility Features** and intuitive navigation
+### 🎯 Advanced Features
+- **Calendar-Based Route Tracking**: View routes by date range with detailed path information
+- **Persistent Data Storage**: All application state persists across page refreshes
+- **Responsive Design**: Compatible with all devices, maintains layout when F12 developer tools are opened
+- **Real-Time Updates**: Automatic map updates when coordinates change via API
+- **Location Accuracy**: GPS accuracy badges and measurements
+- **Sidebar History**: Recent locations displayed in neat tables in sidebar
 
-## 🛠️ Tech Stack
+## 🛠️ Technology Stack
 
 ### Frontend
-- **React.js 18+** - Modern component-based architecture
-- **React Bootstrap** - Professional UI components
-- **React Router** - Client-side routing and navigation
-- **HTML5 QR Code Scanner** - Camera-based QR scanning
+- **React.js 18+** - Modern functional components with hooks
+- **React Bootstrap** - Responsive UI components with professional styling
+- **React Router DOM** - Client-side routing and navigation
+- **HTML5 QR Code Scanner** - Camera-based QR scanning with real-time detection
+- **SweetAlert2** - Beautiful alert dialogs and notifications
 - **Axios** - HTTP client for API communication
+- **Geoapify Maps** - Professional mapping service with carto tiles
 
 ### Backend
-- **Node.js** - Runtime environment
-- **Express.js** - Web application framework
-- **MongoDB** - NoSQL database with Mongoose ODM
-- **JWT Authentication** - Secure token-based auth
+- **Node.js** - JavaScript runtime environment
+- **Express.js** - Web application framework with middleware
+- **MongoDB** - NoSQL database for data persistence
+- **Mongoose** - MongoDB object modeling and validation
+- **JWT (jsonwebtoken)** - Secure token-based authentication
 - **bcryptjs** - Password hashing and security
-- **QRCode** - Server-side QR code generation
 - **CORS** - Cross-origin resource sharing
-- **Custom Middleware** - Authentication and validation
+- **Nodemailer** - Email functionality for notifications
+- **Custom Middleware** - Authentication, error handling, and validation
 
-### Authentication & Security
-- **Google Identity Services** - OAuth 2.0 integration
-- **JWT Tokens** - Secure session management
-- **Role-based Security** - Access control system
+### Database & Security
+- **MongoDB Atlas/Local** - Database hosting with gpstracker database
+- **JWT Tokens** - Secure session management with userId field consistency
+- **Role-based Access Control** - User, Admin, Super Admin permissions
+- **Password Encryption** - bcrypt with salt rounds for security
+- **Database-Only Auth** - No localStorage dependency for authentication
 
-### Development Tools
-- **Create React App** - Development environment
-- **npm** - Package management
-- **Git** - Version control
-- **Figma** - UI/UX design and prototyping
+### Development & Deployment
+- **Nodemon** - Development server auto-restart
+- **Concurrently** - Run frontend and backend simultaneously
+- **dotenv** - Environment variable management
+- **ESLint** - Code linting and quality assurance
+- **Create React App** - Development environment setup
 
 ## 📁 Project Structure
 
 ```
 gpstracker/
-├── client/                     # React frontend application
+├── client/                          # React frontend application
 │   ├── public/
-│   │   ├── index.html         # Main HTML template
-│   │   └── favicon.ico        # Application icon
+│   │   ├── index.html              # Main HTML template
+│   │   └── favicon.ico             # Application icon
 │   ├── src/
-│   │   ├── components/        # React components
-│   │   │   ├── WelcomePage.js # Main dashboard component
-│   │   │   ├── LoginPage.js   # Authentication component
-│   │   │   ├── SignupPage.js  # User registration
-│   │   │   └── GoogleSignIn.js # OAuth integration
-│   │   ├── hooks/             # Custom React hooks
-│   │   ├── App.js             # Main application component
-│   │   └── index.js           # Application entry point
-│   ├── package.json           # Frontend dependencies
-│   └── .env                   # Environment variables
-├── server/                     # Node.js backend
-│   ├── server.js              # Express server setup
-│   └── package.json           # Backend dependencies
-├── docs/                       # Documentation
-│   ├── API.md                 # API documentation
-│   └── DEPLOYMENT.md          # Deployment guide
-└── README.md                  # Project documentation
+│   │   ├── components/             # React components
+│   │   │   ├── WelcomePage.js      # Main dashboard with GPS tracking
+│   │   │   ├── LoginPage.js        # Database authentication
+│   │   │   ├── SignupPage.js       # User registration with validation
+│   │   │   ├── GeoapifyGPSTracker.js # Advanced GPS tracking component
+│   │   │   └── RealTimePathMap.js  # Real-time path visualization
+│   │   ├── services/
+│   │   │   └── api.js              # API service configuration
+│   │   ├── App.js                  # Main application with routing
+│   │   └── index.js                # Application entry point
+│   ├── package.json                # Frontend dependencies
+│   └── .env                        # Environment variables
+├── server/                          # Node.js backend
+│   ├── server.js                   # Express server with MongoDB connection
+│   ├── models/                     # Mongoose data models
+│   │   ├── User.js                 # User schema with roles
+│   │   ├── Device.js               # Device tracking schema
+│   │   ├── GPSLocation.js          # GPS coordinates schema
+│   │   └── QRCode.js               # QR code management schema
+│   ├── routes/                     # API route handlers
+│   │   ├── auth.js                 # Authentication endpoints
+│   │   ├── users.js                # User management endpoints
+│   │   ├── devices.js              # Device management endpoints
+│   │   └── gps.js                  # GPS tracking endpoints
+│   ├── middleware/                 # Custom middleware
+│   │   ├── auth.js                 # JWT authentication middleware
+│   │   └── errorHandler.js         # Error handling middleware
+│   ├── package.json                # Backend dependencies
+│   └── .env                        # Server environment variables
+├── package.json                     # Root package.json for concurrent scripts
+└── README.md                       # Comprehensive project documentation
 ```
 
 ## 🚀 Quick Start

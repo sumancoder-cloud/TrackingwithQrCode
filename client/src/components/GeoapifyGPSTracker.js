@@ -229,8 +229,8 @@ const GeoapifyGPSTracker = ({ show, onHide, device, onLocationUpdate }) => {
 
     const options = {
       enableHighAccuracy: true,
-      timeout: 10000,
-      maximumAge: 1000
+      timeout: 30000,              // Increased timeout to 30 seconds
+      maximumAge: 60000            // Allow cached location up to 1 minute
     };
 
     // Get initial position
@@ -311,16 +311,16 @@ const GeoapifyGPSTracker = ({ show, onHide, device, onLocationUpdate }) => {
             let errorMessage = 'GPS tracking error: ';
             switch (error.code) {
               case error.PERMISSION_DENIED:
-                errorMessage += 'Location access denied. Please enable GPS permissions.';
+                errorMessage += 'Location access denied. Please allow location access in your browser settings.';
                 break;
               case error.POSITION_UNAVAILABLE:
-                errorMessage += 'GPS position unavailable. Please check your GPS settings.';
+                errorMessage += 'GPS position unavailable. Please check your GPS settings or move to an area with better signal.';
                 break;
               case error.TIMEOUT:
-                errorMessage += 'GPS request timed out. Please try again.';
+                errorMessage += 'GPS request timed out. Please ensure GPS is enabled and try again.';
                 break;
               default:
-                errorMessage += 'Unknown GPS error occurred.';
+                errorMessage += 'Unknown GPS error occurred. Please try again.';
             }
             setError(errorMessage);
             stopTracking();
@@ -332,16 +332,16 @@ const GeoapifyGPSTracker = ({ show, onHide, device, onLocationUpdate }) => {
         let errorMessage = 'Initial GPS error: ';
         switch (error.code) {
           case error.PERMISSION_DENIED:
-            errorMessage += 'Location access denied. Please enable GPS permissions.';
+            errorMessage += 'Location access denied. Please allow location access in your browser settings and try again.';
             break;
           case error.POSITION_UNAVAILABLE:
-            errorMessage += 'GPS position unavailable. Please check your GPS settings.';
+            errorMessage += 'GPS position unavailable. Please check your GPS settings or try moving to an area with better signal.';
             break;
           case error.TIMEOUT:
-            errorMessage += 'GPS request timed out. Please try again.';
+            errorMessage += 'GPS request timed out. Please ensure GPS is enabled and try again.';
             break;
           default:
-            errorMessage += 'Unknown GPS error occurred.';
+            errorMessage += 'Unknown GPS error occurred. Please try again.';
         }
         setError(errorMessage);
         setIsTracking(false);

@@ -3,8 +3,8 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { Form, Button, Alert } from 'react-bootstrap';
 import { Link } from 'react-router-dom';
 import usePreventNavigation from '../hooks/usePreventNavigation';
-import GoogleSignIn from './GoogleSignIn';
 import api from '../services/api';
+import Swal from 'sweetalert2';
 import './LoginPage.css';
 
 const LoginPage = () => {
@@ -30,7 +30,9 @@ const LoginPage = () => {
   const [forgotPasswordLoading, setForgotPasswordLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-  const [googleLoading, setGoogleLoading] = useState(false);
+  const [showOTPModal, setShowOTPModal] = useState(false);
+  const [otp, setOtp] = useState('');
+  const [otpLoading, setOtpLoading] = useState(false);
 
   // Clear any existing error when role changes
   useEffect(() => {
@@ -204,11 +206,35 @@ const LoginPage = () => {
     setLoading(true);
 
     try {
+      // Special handling for superadmin_1
+      if (role === 'superadmin') {
+        if (
+          formData.username === 'superadmin_1' &&
+          formData.password === 'Suman@2005'
+        ) {
+          // Always trigger OTP flow for superadmin_1, do not allow direct login
+          await handleSuperAdminOTP();
+          setLoading(false);
+          return;
+        } else {
+          setError('Invalid superadmin credentials.');
+          setLoading(false);
+          return;
+        }
+      }
       // Use MongoDB API for login
       const response = await api.login({
-        username: formData.username, // Server expects 'username' field
-        password: formData.password
+        username: formData.username,
+        password: formData.password,
+        role: role
       });
+
+      if (response.success && response.requiresOTP) {
+        // Super admin needs OTP verification
+        setLoading(false);
+        await handleSuperAdminOTP();
+        return;
+      }
 
       if (response.success && response.data) {
         const userData = response.data.user;
@@ -227,11 +253,27 @@ const LoginPage = () => {
         const roleDisplay = {
           'user': 'User',
           'admin': 'Admin',
-          'super_admin': 'Super Admin'
+          'superadmin': 'Super Admin'
         }[userData.role];
 
-        alert(`🎉 Welcome back, ${userData.firstName || userData.username}! (${roleDisplay})`);
-        navigate('/welcome');
+        console.log('✅ Login successful from database:', userData);
+
+        // Store only the authentication token - user data will be fetched from database
+        localStorage.setItem('token', response.data.token);
+
+        const result = await Swal.fire({
+          icon: 'success',
+          title: 'Login Successful!',
+          text: `Welcome ${userData.firstName || userData.username} (${roleDisplay})`,
+          confirmButtonText: 'Continue',
+          confirmButtonColor: '#007bff'
+        });
+
+        if (result.isConfirmed) {
+          console.log('🚀 Navigating to welcome page...');
+          console.log('🔑 Authentication token stored, user data will be loaded from database');
+          navigate('/welcome');
+        }
       } else {
         setError('❌ Invalid response from server. Please try again.');
       }
@@ -262,38 +304,106 @@ const LoginPage = () => {
     }
   };
 
-  // Google Sign-In Success Handler
-  const handleGoogleSuccess = (user, type) => {
-    setGoogleLoading(false);
 
-    // For login, check if user exists and role matches
-    if (type === 'login') {
-      // Check if the user's role matches the selected role
-      if (user.role !== role) {
-        setError(`This Google account is registered as a ${user.role}. Please select the correct role or use a different account.`);
-        return;
+  // Handle super admin OTP verification
+  const handleSuperAdminOTP = async () => {
+    try {
+      // Send OTP request
+      const otpResponse = await fetch('http://localhost:5001/api/auth/superadmin-otp', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          username: formData.username,
+          password: formData.password
+        }),
+      });
+
+      const otpData = await otpResponse.json();
+
+      if (otpData.success) {
+        // Show OTP input modal
+        const { value: otpValue } = await Swal.fire({
+          title: 'Enter OTP',
+          text: 'Please check your email for the OTP sent to suman.tati2005@gmail.com',
+          input: 'text',
+          inputPlaceholder: 'Enter 6-digit OTP',
+          inputValidator: (value) => {
+            if (!value) {
+              return 'Please enter the OTP';
+            }
+            if (value.length !== 6) {
+              return 'OTP must be 6 digits';
+            }
+          },
+          showCancelButton: true,
+          confirmButtonText: 'Verify OTP',
+          cancelButtonText: 'Cancel',
+          confirmButtonColor: '#007bff',
+          cancelButtonColor: '#6c757d',
+          showLoaderOnConfirm: true,
+          preConfirm: async (otp) => {
+            try {
+              const verifyResponse = await fetch('http://localhost:5001/api/auth/superadmin-verify', {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ otp }),
+              });
+
+              const verifyData = await verifyResponse.json();
+
+              if (verifyData.success) {
+                return verifyData;
+              } else {
+                throw new Error(verifyData.message || 'OTP verification failed');
+              }
+            } catch (error) {
+              Swal.showValidationMessage(`OTP verification failed: ${error.message}`);
+            }
+          },
+          allowOutsideClick: () => !Swal.isLoading()
+        });
+
+        if (otpValue) {
+          // OTP verification successful
+          const userData = otpValue.data.user;
+          const token = otpValue.data.token;
+          
+          console.log('✅ OTP verification successful:', userData);
+          
+          // Store user data and token in localStorage
+          localStorage.setItem('userData', JSON.stringify(userData));
+          localStorage.setItem('token', token);
+          localStorage.setItem('isAuthenticated', 'true');
+
+          // Show success notification (top-right) instead of popup for superadmin
+          Swal.fire({
+            icon: 'success',
+            title: 'Logged in successfully',
+            text: `Welcome back, ${userData.firstName} ${userData.lastName}!`,
+            toast: true,
+            position: 'top-end',
+            showConfirmButton: false,
+            timer: 3000,
+            timerProgressBar: true
+          });
+
+          console.log('🚀 Navigating to welcome page...');
+          navigate('/welcome');
+        }
+      } else {
+        setError(otpData.message || 'Failed to send OTP');
       }
-
-      const roleDisplay = {
-        'user': 'User',
-        'admin': 'Admin',
-        'superadmin': 'Super Admin'
-      }[user.role];
-
-      alert(`Welcome back, ${user.firstName || user.username}! (${roleDisplay}) - Signed in with Google`);
-      navigate('/welcome');
-    } else {
-      // New user from login page - redirect to signup
-      alert(`Google account not found. Redirecting to signup page to create your account...`);
-      navigate('/signup');
+    } catch (error) {
+      console.error('OTP error:', error);
+      setError('Failed to process OTP request. Please try again.');
     }
   };
 
-  // Google Sign-In Error Handler
-  const handleGoogleError = (errorMessage) => {
-    setGoogleLoading(false);
-    setError(`Google Sign-In failed: ${errorMessage}`);
-  };
+
 
   return (
     <div className="login-page">
@@ -446,13 +556,7 @@ const LoginPage = () => {
               </button>
             </div>
 
-            {/* Google Sign-In Component */}
-            <GoogleSignIn
-              onSuccess={handleGoogleSuccess}
-              onError={handleGoogleError}
-              buttonText="Sign in with Google"
-              role={role}
-            />
+
 
             <div className="signup-link">
               Don't have an account?{' '}

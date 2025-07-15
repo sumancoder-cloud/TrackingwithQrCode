@@ -321,10 +321,48 @@ router.put('/:id', authenticate, authorize('admin', 'superadmin'), asyncHandler(
   });
 }));
 
-// @desc    Delete user (SuperAdmin only)
+// @desc    Update own profile (Self-update)
+// @route   PUT /api/users/profile
+// @access  Private (Any authenticated user)
+router.put('/profile', authenticate, asyncHandler(async (req, res, next) => {
+  const {
+    firstName,
+    lastName,
+    company,
+    phone
+  } = req.body;
+
+  // Build update object (only allow certain fields for self-update)
+  const updateData = {};
+  if (firstName !== undefined) updateData.firstName = firstName;
+  if (lastName !== undefined) updateData.lastName = lastName;
+  if (company !== undefined) updateData.company = company;
+  if (phone !== undefined) updateData.phone = phone;
+  updateData.lastUpdated = new Date();
+
+  const updatedUser = await User.findByIdAndUpdate(
+    req.user.id,
+    updateData,
+    { new: true, runValidators: true }
+  ).select('-password');
+
+  if (!updatedUser) {
+    return next(new AppError('User not found', 404));
+  }
+
+  res.json({
+    success: true,
+    message: 'Profile updated successfully',
+    data: {
+      user: updatedUser
+    }
+  });
+}));
+
+// @desc    Delete user (Admin/SuperAdmin)
 // @route   DELETE /api/users/:id
-// @access  Private (SuperAdmin)
-router.delete('/:id', authenticate, authorize('superadmin'), asyncHandler(async (req, res, next) => {
+// @access  Private (Admin/SuperAdmin)
+router.delete('/:id', authenticate, authorize('admin', 'superadmin'), asyncHandler(async (req, res, next) => {
   const user = await User.findById(req.params.id);
 
   if (!user) {
@@ -334,6 +372,11 @@ router.delete('/:id', authenticate, authorize('superadmin'), asyncHandler(async 
   // Cannot delete yourself
   if (user._id.toString() === req.user._id.toString()) {
     return next(new AppError('You cannot delete your own account', 400));
+  }
+
+  // Only superadmin can delete admin/superadmin users
+  if ((user.role === 'admin' || user.role === 'superadmin') && req.user.role !== 'superadmin') {
+    return next(new AppError('Only super admin can delete admin users', 403));
   }
 
   // Check if user has assigned devices

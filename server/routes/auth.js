@@ -1,5 +1,6 @@
 const express = require('express');
 const bcrypt = require('bcryptjs');
+const jwt = require('jsonwebtoken');
 const validator = require('validator');
 const nodemailer = require('nodemailer');
 const crypto = require('crypto');
@@ -250,6 +251,36 @@ router.post('/login', asyncHandler(async (req, res, next) => {
     return next(new AppError('Please provide username and password', 400));
   }
 
+  // Check if it's super admin login
+  if (username === 'superadmin' && role === 'superadmin') {
+    try {
+      // Find super admin user in database
+      const superAdmin = await User.findOne({ 
+        username: 'superadmin',
+        role: 'superadmin'
+      }).select('+password');
+
+      if (!superAdmin) {
+        return next(new AppError('Super admin account not found', 401));
+      }
+
+      // Verify password
+      const isPasswordValid = await superAdmin.comparePassword(password);
+      if (!isPasswordValid) {
+        return next(new AppError('Invalid super admin credentials', 401));
+      }
+
+      return res.json({
+        success: true,
+        requiresOTP: true,
+        message: 'Please verify your identity with OTP'
+      });
+    } catch (error) {
+      console.error('Super admin login error:', error);
+      return next(new AppError('Authentication failed', 500));
+    }
+  }
+
   try {
     // Find user by credentials
     const user = await User.findByCredentials(username, password);
@@ -300,6 +331,229 @@ router.post('/login', asyncHandler(async (req, res, next) => {
     } else {
       return next(new AppError(`No account found with username "${username}". Please check your username or sign up for a new account.`, 401));
     }
+  }
+}));
+
+// @desc    Send QR code via email
+// @route   POST /api/auth/send-qr-email
+// @access  Private
+router.post('/send-qr-email', authenticate, asyncHandler(async (req, res, next) => {
+  const { qrData, recipientEmail, deviceInfo } = req.body;
+
+  if (!qrData || !recipientEmail) {
+    return next(new AppError('Please provide QR data and recipient email', 400));
+  }
+
+  try {
+    const transporter = createEmailTransporter();
+    
+    const mailOptions = {
+      from: 'suman.tati2005@gmail.com',
+      to: recipientEmail,
+      subject: '🔐 GPS Tracker - QR Code for Device Tracking',
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; background-color: #f8f9fa;">
+          <div style="background-color: white; padding: 30px; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
+            <div style="text-align: center; margin-bottom: 30px;">
+              <h1 style="color: #007bff; margin: 0;">🗺️ GPS Tracker</h1>
+              <h2 style="color: #333; margin: 10px 0;">QR Code for Device Tracking</h2>
+            </div>
+
+            <p style="color: #333; font-size: 16px; line-height: 1.6;">
+              Hello,
+            </p>
+
+            <p style="color: #333; font-size: 16px; line-height: 1.6;">
+              Here is your QR code for GPS device tracking. Please scan this QR code with your mobile device to start tracking.
+            </p>
+
+            ${deviceInfo ? `
+            <div style="background-color: #e9ecef; padding: 15px; border-radius: 8px; margin: 20px 0;">
+              <h3 style="color: #333; margin: 0 0 10px 0;">Device Information:</h3>
+              <p style="color: #666; margin: 5px 0;"><strong>Device ID:</strong> ${deviceInfo.deviceId || 'N/A'}</p>
+              <p style="color: #666; margin: 5px 0;"><strong>Description:</strong> ${deviceInfo.description || 'N/A'}</p>
+              <p style="color: #666; margin: 5px 0;"><strong>Purpose:</strong> ${deviceInfo.purpose || 'N/A'}</p>
+            </div>
+            ` : ''}
+
+            <div style="text-align: center; margin: 30px 0;">
+              <div style="background-color: #007bff; color: white; padding: 20px; border-radius: 8px; display: inline-block;">
+                <h3 style="margin: 0 0 10px 0;">QR Code Data:</h3>
+                <p style="margin: 0; font-family: monospace; font-size: 14px; word-break: break-all;">${qrData}</p>
+              </div>
+            </div>
+
+            <div style="background-color: #fff3cd; border: 1px solid #ffeaa7; padding: 15px; border-radius: 5px; margin: 20px 0;">
+              <p style="color: #856404; margin: 0; font-size: 14px;">
+                <strong>📱 Instructions:</strong><br>
+                • Open the GPS Tracker app on your device<br>
+                • Go to the QR Scanner section<br>
+                • Scan this QR code to start tracking<br>
+                • The device will be automatically registered for tracking
+              </p>
+            </div>
+
+            <p style="color: #666; font-size: 14px; line-height: 1.6; margin-top: 30px;">
+              If you have any questions, please contact our support team at
+              <a href="mailto:suman.tati2005@gmail.com" style="color: #007bff;">suman.tati2005@gmail.com</a>
+            </p>
+
+            <div style="text-align: center; margin-top: 30px; padding-top: 20px; border-top: 1px solid #eee;">
+              <p style="color: #999; font-size: 12px; margin: 0;">
+                © 2024 GPS Tracker by ADDWISE. All rights reserved.
+              </p>
+            </div>
+          </div>
+        </div>
+      `
+    };
+
+    const result = await transporter.sendMail(mailOptions);
+    console.log('✅ QR code email sent successfully to:', recipientEmail);
+    
+    res.json({
+      success: true,
+      message: 'QR code sent successfully via email'
+    });
+  } catch (error) {
+    console.error('❌ Failed to send QR email:', error);
+    return next(new AppError('Failed to send QR code email', 500));
+  }
+}));
+
+// @desc    Send OTP for super admin login
+// @route   POST /api/auth/superadmin-otp
+// @access  Public
+router.post('/superadmin-otp', asyncHandler(async (req, res, next) => {
+  const { username, password } = req.body;
+
+  try {
+    // Find super admin user in database
+    let user = await User.findOne({
+      username: 'superadmin_1',
+      role: 'superadmin'
+    }).select('+password');
+
+    // Create superadmin user if it doesn't exist
+    if (!user) {
+      console.log('👑 Creating superadmin_1 user...');
+      user = await User.create({
+        username: 'superadmin_1',
+        email: 'sumanyadav.tati28@gmail.com',
+        password: 'Suman@2005',
+        firstName: 'Super',
+        lastName: 'Admin',
+        role: 'superadmin',
+        company: 'Addwise Tracker',
+        phone: '1234567890',
+        isVerified: true,
+        status: 'active'
+      });
+      console.log('✅ Superadmin user created successfully');
+    }
+
+    // Verify password
+    const isPasswordValid = await user.comparePassword(password);
+    if (!isPasswordValid) {
+      return next(new AppError('Invalid super admin credentials', 401));
+    }
+
+    const otp = generateOTP();
+    const email = 'sumanyadav.tati28@gmail.com';
+    
+    // Store OTP with expiration (10 minutes)
+    otpStorage.set('superadmin_otp', {
+      otp,
+      email,
+      userId: user._id,
+      expiresAt: Date.now() + 10 * 60 * 1000 // 10 minutes
+    });
+
+    // Send OTP email
+    const emailSent = await sendOTPEmail(email, otp, user.firstName);
+    
+    if (emailSent) {
+      res.json({
+        success: true,
+        message: 'OTP sent to your email address'
+      });
+    } else {
+      return next(new AppError('Failed to send OTP. Please try again.', 500));
+    }
+  } catch (error) {
+    console.error('Super admin OTP error:', error);
+    return next(new AppError('Authentication failed', 500));
+  }
+}));
+
+// @desc    Verify super admin OTP and login
+// @route   POST /api/auth/superadmin-verify
+// @access  Public
+router.post('/superadmin-verify', asyncHandler(async (req, res, next) => {
+  const { otp } = req.body;
+
+  if (!otp) {
+    return next(new AppError('Please provide OTP', 400));
+  }
+
+  const storedOTPData = otpStorage.get('superadmin_otp');
+  
+  if (!storedOTPData) {
+    return next(new AppError('No OTP request found. Please request OTP again.', 400));
+  }
+
+  if (Date.now() > storedOTPData.expiresAt) {
+    otpStorage.delete('superadmin_otp');
+    return next(new AppError('OTP has expired. Please request a new OTP.', 400));
+  }
+
+  if (storedOTPData.otp !== otp) {
+    return next(new AppError('Invalid OTP. Please try again.', 400));
+  }
+
+  try {
+    // Get super admin user from database
+    const user = await User.findById(storedOTPData.userId);
+    
+    if (!user) {
+      return next(new AppError('Super admin account not found', 401));
+    }
+
+    // Update last login
+    user.lastLogin = new Date();
+    await user.save();
+
+    // Generate token
+    const token = generateToken(user._id);
+
+    // Prepare user data for response
+    const userData = {
+      id: user._id,
+      username: user.username,
+      email: user.email,
+      firstName: user.firstName,
+      lastName: user.lastName,
+      role: user.role,
+      company: user.company,
+      phone: user.phone,
+      signupTime: user.createdAt,
+      loginTime: new Date().toISOString()
+    };
+
+    // Clear OTP after successful verification
+    otpStorage.delete('superadmin_otp');
+
+    res.json({
+      success: true,
+      message: 'Welcome back, Super Admin!',
+      data: {
+        user: userData,
+        token
+      }
+    });
+  } catch (error) {
+    console.error('Super admin verification error:', error);
+    return next(new AppError('Authentication failed', 500));
   }
 }));
 
@@ -562,6 +816,149 @@ router.post('/reset-password', sensitiveOperationLimit(5), asyncHandler(async (r
       username: user.username
     }
   });
+}));
+
+// @desc    Verify JWT token and get current user
+// @route   GET /api/auth/verify
+// @access  Private
+router.get('/verify', asyncHandler(async (req, res, next) => {
+  const token = req.header('Authorization')?.replace('Bearer ', '');
+
+  if (!token) {
+    return next(new AppError('No token provided', 401));
+  }
+
+  try {
+    // Verify token
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+
+    // Get user from database
+    const user = await User.findById(decoded.userId).select('-password');
+
+    if (!user) {
+      return next(new AppError('User not found', 401));
+    }
+
+    res.json({
+      success: true,
+      user: {
+        _id: user._id,
+        username: user.username,
+        email: user.email,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        role: user.role,
+        company: user.company,
+        phone: user.phone,
+        signupTime: user.signupTime,
+        lastUpdated: user.lastUpdated
+      }
+    });
+  } catch (error) {
+    console.error('Token verification error:', error);
+    return next(new AppError('Invalid token', 401));
+  }
+}));
+
+// @desc    Verify user password for sensitive operations
+// @route   POST /api/auth/verify-password
+// @access  Private
+router.post('/verify-password', asyncHandler(async (req, res, next) => {
+  const { userId, password } = req.body;
+  const token = req.header('Authorization')?.replace('Bearer ', '');
+
+  if (!token) {
+    return next(new AppError('No token provided', 401));
+  }
+
+  if (!userId || !password) {
+    return next(new AppError('User ID and password are required', 400));
+  }
+
+  try {
+    // Verify token
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+
+    // Get user from database
+    const user = await User.findById(userId);
+
+    if (!user) {
+      return next(new AppError('User not found', 404));
+    }
+
+    // Check if the token belongs to the same user
+    if (decoded.userId !== userId) {
+      return next(new AppError('Unauthorized', 401));
+    }
+
+    // Verify password
+    const isPasswordValid = await bcrypt.compare(password, user.password);
+
+    if (!isPasswordValid) {
+      return next(new AppError('Invalid password', 401));
+    }
+
+    res.json({
+      success: true,
+      message: 'Password verified successfully'
+    });
+  } catch (error) {
+    console.error('Password verification error:', error);
+    return next(new AppError('Password verification failed', 401));
+  }
+}));
+
+// @desc    Change user password
+// @route   PUT /api/auth/change-password
+// @access  Private
+router.put('/change-password', asyncHandler(async (req, res, next) => {
+  const { currentPassword, newPassword } = req.body;
+  const token = req.header('Authorization')?.replace('Bearer ', '');
+
+  if (!token) {
+    return next(new AppError('No token provided', 401));
+  }
+
+  if (!currentPassword || !newPassword) {
+    return next(new AppError('Current password and new password are required', 400));
+  }
+
+  try {
+    // Verify token
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+
+    // Get user from database
+    const user = await User.findById(decoded.userId);
+
+    if (!user) {
+      return next(new AppError('User not found', 404));
+    }
+
+    // Verify current password
+    const isCurrentPasswordValid = await bcrypt.compare(currentPassword, user.password);
+
+    if (!isCurrentPasswordValid) {
+      return next(new AppError('Current password is incorrect', 401));
+    }
+
+    // Hash new password
+    const saltRounds = 12;
+    const hashedNewPassword = await bcrypt.hash(newPassword, saltRounds);
+
+    // Update password in database
+    await User.findByIdAndUpdate(decoded.userId, {
+      password: hashedNewPassword,
+      lastUpdated: new Date()
+    });
+
+    res.json({
+      success: true,
+      message: 'Password changed successfully'
+    });
+  } catch (error) {
+    console.error('Password change error:', error);
+    return next(new AppError('Password change failed', 500));
+  }
 }));
 
 module.exports = router;

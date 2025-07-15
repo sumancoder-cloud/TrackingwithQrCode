@@ -19,9 +19,8 @@ mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/gpstracke
 .catch(err => console.error('MongoDB Connection Error:', err));
 
 // Models
-const User = require('./models/User');
-const Device = require('./models/Device');
-const Activity = require('./models/Activity');
+const User = require('./server/models/User');
+const Device = require('./server/models/Device');
 
 // Serve static files from the React app
 app.use(express.static(path.join(__dirname, 'client/build')));
@@ -33,10 +32,7 @@ app.get('/api/dashboard/stats', async (req, res) => {
     const activeDevices = await Device.countDocuments({ status: 'online' });
     const totalUsers = await User.countDocuments();
     const activeUsers = await User.countDocuments({ status: 'active' });
-    const recentAlerts = await Activity.countDocuments({ 
-      type: 'alert',
-      createdAt: { $gte: new Date(Date.now() - 24*60*60*1000) }
-    });
+    const recentAlerts = 0; // Activity model not implemented yet
 
     res.json({
       devices: {

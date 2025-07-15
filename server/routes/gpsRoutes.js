@@ -1,5 +1,6 @@
 const express = require('express');
 const router = express.Router();
+const LocationHistory = require('../models/LocationHistory');
 
 // In-memory storage for GPS data (in production, use MongoDB)
 let deviceLocations = {};
@@ -57,12 +58,42 @@ router.post('/location', (req, res) => {
     if (!devicePaths[deviceId]) {
       devicePaths[deviceId] = [];
     }
-    
+
     devicePaths[deviceId].push(locationData);
 
     // Keep only last 100 points
     if (devicePaths[deviceId].length > 100) {
       devicePaths[deviceId] = devicePaths[deviceId].slice(-100);
+    }
+
+    // Save to location history database
+    try {
+      const locationHistoryData = {
+        deviceId: deviceId,
+        deviceName: deviceName || `Device ${deviceId}`,
+        location: {
+          latitude: parseFloat(latitude),
+          longitude: parseFloat(longitude),
+          accuracy: accuracy || 10,
+          speed: speed || 0,
+          heading: heading || null
+        },
+        timestamp: new Date(),
+        recordedAt: new Date(),
+        source: 'api',
+        assignedTo: '', // Will be updated when we know the user
+        routeId: `${deviceId}_${new Date().toISOString().split('T')[0]}` // Daily route ID
+      };
+
+      // Save to database (async, don't wait for response)
+      const locationHistory = new LocationHistory(locationHistoryData);
+      locationHistory.save().then(saved => {
+        console.log(`💾 Location saved to history database for device ${deviceId}`);
+      }).catch(err => {
+        console.error(`❌ Failed to save location history for device ${deviceId}:`, err.message);
+      });
+    } catch (historyError) {
+      console.error('❌ Error preparing location history:', historyError.message);
     }
 
     console.log(`📍 GPS API: Updated location for device ${deviceId}:`, latitude, longitude);

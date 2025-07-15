@@ -27,6 +27,62 @@ const gpsApi = {
     }
   },
 
+  // Save location point to database
+  saveLocation: async (locationData) => {
+    try {
+      const response = await api.post(`${GPS_API_BASE}/save-location`, locationData);
+      console.log('💾 Location saved to database:', response.data);
+      return response.data;
+    } catch (error) {
+      console.error('Failed to save location:', error);
+      throw error;
+    }
+  },
+
+  // Get latest location for a device
+  getLatestLocation: async (deviceId) => {
+    try {
+      const response = await api.get(`${GPS_API_BASE}/latest/${deviceId}`);
+      return response.data;
+    } catch (error) {
+      console.error('Failed to get latest location:', error);
+      throw error;
+    }
+  },
+
+  // Get locations for a specific date
+  getLocationsByDate: async (deviceId, date) => {
+    try {
+      const response = await api.get(`${GPS_API_BASE}/locations/${deviceId}/date/${date}`);
+      return response.data;
+    } catch (error) {
+      console.error('Failed to get locations by date:', error);
+      throw error;
+    }
+  },
+
+  // Get all locations for a device within date range
+  getLocationsByDateRange: async (deviceId, startDate, endDate) => {
+    try {
+      const response = await api.get(`${GPS_API_BASE}/locations/${deviceId}/range?start=${startDate}&end=${endDate}`);
+      return response.data;
+    } catch (error) {
+      console.error('Failed to get locations by date range:', error);
+      throw error;
+    }
+  },
+
+  // Get all locations for a device
+  getAllLocationsForDevice: async (deviceId) => {
+    try {
+      const response = await api.get(`${GPS_API_BASE}/locations/${deviceId}/all`);
+      return response.data;
+    } catch (error) {
+      console.error('Failed to get all locations for device:', error);
+      throw error;
+    }
+  },
+
   // Get current device location
   getDeviceLocation: async (deviceId) => {
     try {

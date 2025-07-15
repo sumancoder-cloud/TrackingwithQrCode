@@ -148,7 +148,7 @@ const RealTimePathMap = ({ deviceData, onClose }) => {
         // Check localStorage for local updates
         const storedPath = JSON.parse(localStorage.getItem(trackingKey) || '[]');
 
-        // 🔥 ENHANCED: Also check server for Postman updates
+        // 🔥 ENHANCED: Also check server for GPS updates
         let serverPath = [];
         try {
           const response = await fetch(`http://localhost:5001/api/gps/path/${deviceData.deviceId}`);
@@ -197,7 +197,7 @@ const RealTimePathMap = ({ deviceData, onClose }) => {
                 `📍 ${latest.latitude.toFixed(6)}, ${latest.longitude.toFixed(6)}<br/>` +
                 `⏰ ${timestamp}<br/>` +
                 `🚀 Speed: ${latest.speed || 0} km/h<br/>` +
-                `🎯 Updated via: ${serverPath.length > 0 ? 'Postman/API' : 'Local GPS'}`
+                `🎯 Updated via: ${serverPath.length > 0 ? 'Live GPS' : 'Local GPS'}`
               );
 
               // Center map on latest position
@@ -214,7 +214,7 @@ const RealTimePathMap = ({ deviceData, onClose }) => {
       }
     };
 
-    // 🔥 Check for updates every 2 seconds (optimized for Postman testing)
+    // 🔥 Check for updates every 2 seconds (optimized for real-time tracking)
     checkForUpdates(); // Check immediately
     const interval = setInterval(checkForUpdates, 2000);
     

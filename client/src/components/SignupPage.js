@@ -2,8 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Form, Button, Alert, Row, Col } from 'react-bootstrap';
 import { Link } from 'react-router-dom';
-import GoogleSignIn from './GoogleSignIn';
 import api from '../services/api';
+import Swal from 'sweetalert2';
 import './SignupPage.css';
 
 const SignupPage = () => {
@@ -43,7 +43,6 @@ const SignupPage = () => {
   });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  const [googleLoading, setGoogleLoading] = useState(false);
 
   const handleInputChange = (e) => {
     const { name, value, type, checked } = e.target;
@@ -131,8 +130,31 @@ const SignupPage = () => {
 
       if (response.success) {
         console.log('User created successfully:', response.user);
-        alert(`Account created successfully! Welcome to Addwise Tracker, ${formData.firstName}!`);
-        navigate(`/login/${formData.role}`);
+        
+        // Store user data if provided in response
+        if (response.data && response.data.user) {
+          localStorage.setItem('userData', JSON.stringify(response.data.user));
+          localStorage.setItem('token', response.data.token);
+          localStorage.setItem('isAuthenticated', 'true');
+          
+          Swal.fire({
+            icon: 'success',
+            title: 'Account Created!',
+            text: `Welcome to Addwise Tracker, ${formData.firstName}!`,
+            confirmButtonText: 'Continue',
+            confirmButtonColor: '#007bff'
+          });
+          navigate('/welcome');
+        } else {
+          Swal.fire({
+            icon: 'success',
+            title: 'Account Created!',
+            text: `Welcome to Addwise Tracker, ${formData.firstName}!`,
+            confirmButtonText: 'Continue',
+            confirmButtonColor: '#007bff'
+          });
+          navigate(`/login/${formData.role}`);
+        }
       }
 
     } catch (err) {
@@ -166,70 +188,7 @@ const SignupPage = () => {
     }
   };
 
-  // Google Sign-In Success Handler
-  const handleGoogleSuccess = (user, type) => {
-    setGoogleLoading(false);
 
-    if (type === 'login') {
-      // User already exists, redirect to welcome
-      const roleDisplay = {
-        'user': 'User',
-        'admin': 'Admin',
-        'superadmin': 'Super Admin'
-      }[user.role];
-
-      alert(`Welcome back, ${user.firstName || user.username}! (${roleDisplay}) - Signed in with Google`);
-      navigate('/welcome');
-    } else {
-      // New user, auto-fill the form with Google data
-      setFormData({
-        firstName: user.firstName || '',
-        lastName: user.lastName || '',
-        email: user.email || '',
-        username: user.username || user.email.split('@')[0],
-        company: '',
-        phone: '',
-        role: formData.role, // Keep selected role
-        password: 'google-auth-' + Date.now(), // Auto-generated password
-        confirmPassword: 'google-auth-' + Date.now(),
-        agreeToTerms: true // Auto-agree for Google users
-      });
-
-      // Show success message and auto-submit
-      alert(`Google account information loaded! Creating your account...`);
-
-      // Auto-submit the form after a short delay
-      setTimeout(() => {
-        const googleUserInfo = {
-          username: user.username,
-          email: user.email,
-          role: user.role,
-          firstName: user.firstName,
-          lastName: user.lastName,
-          company: '',
-          phone: '',
-          password: 'google-auth-' + Date.now(),
-          signupTime: new Date().toISOString(),
-          authProvider: 'google',
-          googleId: user.googleId,
-          picture: user.picture
-        };
-
-        const users = JSON.parse(localStorage.getItem('users') || '[]');
-        users.push(googleUserInfo);
-        localStorage.setItem('users', JSON.stringify(users));
-
-        alert(`Account created successfully! Welcome to Addwise Tracker, ${user.firstName}!`);
-        navigate(`/login/${user.role}`);
-      }, 1000);
-    }
-  };
-
-  // Google Sign-In Error Handler
-  const handleGoogleError = (errorMessage) => {
-    setGoogleLoading(false);
-    setError(`Google Sign-In failed: ${errorMessage}`);
-  };
 
   return (
     <div className="signup-page">
@@ -403,13 +362,7 @@ const SignupPage = () => {
                 )}
               </Button>
 
-              {/* Google Sign-In Component */}
-              <GoogleSignIn
-                onSuccess={handleGoogleSuccess}
-                onError={handleGoogleError}
-                buttonText="Sign up with Google"
-                role={formData.role}
-              />
+
 
               <div className="login-link">
                 Have an account? <Link to="/login" className="link">Login</Link>

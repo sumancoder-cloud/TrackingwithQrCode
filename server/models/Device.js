@@ -6,13 +6,18 @@ const deviceSchema = new mongoose.Schema({
     required: [true, 'Device ID is required'],
     unique: true,
     trim: true,
-    minlength: [16, 'Device ID must be exactly 16 digits'],
-    maxlength: [16, 'Device ID must be exactly 16 digits'],
-    match: [/^\d{16}$/, 'Device ID must be exactly 16 digits']
+    minlength: [10, 'Device ID must be at least 10 characters'],
+    maxlength: [20, 'Device ID must be at most 20 characters'],
+    match: [/^[A-Za-z0-9]+$/, 'Device ID must contain only alphanumeric characters']
   },
   name: {
     type: String,
     required: [true, 'Device name is required'],
+    trim: true,
+    maxlength: [100, 'Device name cannot exceed 100 characters']
+  },
+  deviceName: {
+    type: String,
     trim: true,
     maxlength: [100, 'Device name cannot exceed 100 characters']
   },
@@ -47,6 +52,15 @@ const deviceSchema = new mongoose.Schema({
     enum: ['gps', 'qr', 'hybrid'],
     default: 'gps'
   },
+  uploadMethod: {
+    type: String,
+    enum: ['scan', 'upload', 'manual'],
+    default: 'manual'
+  },
+  qrImageName: {
+    type: String,
+    trim: true
+  },
   status: {
     type: String,
     enum: ['pending', 'approved', 'rejected', 'active', 'inactive', 'maintenance'],
@@ -54,13 +68,15 @@ const deviceSchema = new mongoose.Schema({
   },
   assignedTo: {
     type: mongoose.Schema.Types.ObjectId,
-    ref: 'User',
-    required: [true, 'Device must be assigned to a user']
+    ref: 'User'
   },
   requestedBy: {
     type: mongoose.Schema.Types.ObjectId,
-    ref: 'User',
-    required: [true, 'Device request must have a requester']
+    ref: 'User'
+  },
+  createdBy: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User'
   },
   approvedBy: {
     type: mongoose.Schema.Types.ObjectId,
@@ -80,6 +96,28 @@ const deviceSchema = new mongoose.Schema({
     type: String,
     trim: true,
     maxlength: [500, 'Rejection reason cannot exceed 500 characters']
+  },
+  registrationDate: {
+    type: Date,
+    default: Date.now
+  },
+  lastKnownLocation: {
+    latitude: {
+      type: Number
+    },
+    longitude: {
+      type: Number
+    },
+    accuracy: {
+      type: Number
+    },
+    timestamp: {
+      type: Date
+    },
+    address: {
+      type: String,
+      trim: true
+    }
   },
   qrCode: {
     data: {
