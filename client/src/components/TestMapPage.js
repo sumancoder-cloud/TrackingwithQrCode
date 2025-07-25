@@ -37,6 +37,46 @@ const TestMapPage = () => {
     }
   };
 
+  // Test function to fetch location from server (Postman data)
+  const testServerLocation = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      const deviceId = prompt('Enter your device ID:', 'TEST123456789') || 'TEST123456789';
+
+      console.log('🔍 Fetching location from server for device:', deviceId);
+
+      const response = await fetch(`http://localhost:5001/api/locations/${deviceId}/latest`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+
+      const result = await response.json();
+      console.log('📡 Server response:', result);
+
+      if (result.success && result.data.location) {
+        const location = result.data.location;
+        // Note: Your API returns GeoJSON format [longitude, latitude]
+        const lat = location.coordinates.coordinates[1];
+        const lng = location.coordinates.coordinates[0];
+
+        setCurrentLocation({
+          latitude: lat,
+          longitude: lng
+        });
+        setShowMap(true);
+        console.log('✅ Server location loaded:', lat, lng);
+        alert(`✅ Location loaded from server!\nLat: ${lat}\nLng: ${lng}`);
+      } else {
+        console.log('❌ No location found:', result);
+        alert('❌ No location found on server for this device');
+      }
+    } catch (error) {
+      console.error('❌ Error fetching server location:', error);
+      alert('❌ Error fetching location from server: ' + error.message);
+    }
+  };
+
   return (
     <Container className="mt-4">
       <Card>
@@ -45,18 +85,25 @@ const TestMapPage = () => {
         </Card.Header>
         <Card.Body>
           <div className="mb-3">
-            <Button 
-              variant="primary" 
+            <Button
+              variant="primary"
               onClick={testMap}
               className="me-2"
             >
               🗺️ Test Map (New York)
             </Button>
-            <Button 
-              variant="success" 
+            <Button
+              variant="success"
               onClick={testGPS}
+              className="me-2"
             >
               📍 Test GPS Location
+            </Button>
+            <Button
+              variant="warning"
+              onClick={testServerLocation}
+            >
+              📡 Test Server Location (Postman Data)
             </Button>
           </div>
 

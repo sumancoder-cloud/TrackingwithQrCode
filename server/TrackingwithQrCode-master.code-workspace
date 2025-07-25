@@ -1,0 +1,13 @@
+{
+	"folders": [
+		{
+			"path": "../../../../../Downloads/TrackingwithQrCode-master"
+		}
+	],
+	"settings": {},
+	"extensions": {
+		"recommendations": [
+			"augment.vscode-augment"
+		]
+	}
+}

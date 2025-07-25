@@ -52,7 +52,7 @@ const QRCodeDisplay = ({ qrData, size = 120 }) => {
     const generateQRImage = async () => {
       try {
         setLoading(true);
-        console.log('🔲 Generating QR code for:', qrData);
+
 
         const qrImageData = await QRCode.toDataURL(qrData, {
           width: size,
@@ -751,53 +751,52 @@ const WelcomePage = () => {
     setStatisticsError('');
 
     try {
-      console.log('📊 Loading statistics data from existing sources...');
+
 
       // Use existing data that's already loaded in the component
       let users = Array.isArray(allUsers) ? allUsers : [];
       let devices = Array.isArray(allDevices) ? allDevices : [];
       let locations = [];
 
-      console.log('📊 STATISTICS: Initial users array check:', Array.isArray(users), users.length);
-      console.log('📊 STATISTICS: Initial devices array check:', Array.isArray(devices), devices.length);
+
 
       // If no existing data, try to load fresh data
       if (users.length === 0) {
         try {
-          console.log('🔄 Loading fresh users data...');
+
           const usersResponse = await api.getAllUsers();
           const userData = usersResponse.data || usersResponse;
           users = Array.isArray(userData) ? userData : [];
-          console.log('✅ Fresh users loaded:', users.length);
+
         } catch (error) {
           console.warn('⚠️ Failed to load fresh users:', error.message);
           users = [];
         }
       } else {
-        console.log('✅ Using existing users data:', users.length);
+
       }
 
       if (devices.length === 0) {
         try {
-          console.log('🔄 Loading fresh devices data...');
+
           const devicesResponse = await api.getAllDevices();
           const deviceData = devicesResponse.data || devicesResponse;
           devices = Array.isArray(deviceData) ? deviceData : [];
-          console.log('✅ Fresh devices loaded:', devices.length);
+
         } catch (error) {
           console.warn('⚠️ Failed to load fresh devices:', error.message);
           devices = [];
         }
       } else {
-        console.log('✅ Using existing devices data:', devices.length);
+
       }
 
       // Try to load locations data (optional)
       try {
-        console.log('🔄 Loading locations data...');
+
         const locationsResponse = await api.getAllLocations();
         locations = locationsResponse.data || locationsResponse || [];
-        console.log('✅ Locations loaded:', locations.length);
+
       } catch (error) {
         console.warn('⚠️ Failed to load locations (using fallback):', error.message);
         // Generate some sample location data for demonstration
@@ -808,8 +807,7 @@ const WelcomePage = () => {
       }
 
       // Process statistics with array validation
-      console.log('📊 STATISTICS: Processing users:', Array.isArray(users), users.length);
-      console.log('📊 STATISTICS: Processing devices:', Array.isArray(devices), devices.length);
+
 
       // Ensure arrays are valid
       const validUsers = Array.isArray(users) ? users : [];
@@ -962,15 +960,13 @@ const WelcomePage = () => {
   const loadAllUsers = useCallback(async () => {
     if (userData && (userData.role === 'admin' || userData.role === 'superadmin')) {
       try {
-        console.log('👥 ADMIN: Loading all users from gpstracker database...');
-        console.log('🔑 Current user role:', userData.role);
-        console.log('🌐 Backend URL: http://localhost:5001/api/users');
+
 
         // Try to load from gpstracker database API first
         try {
-          console.log('🔄 Calling API: /api/users to get all users from gpstracker database...');
+
           const response = await api.getAllUsers();
-          console.log('📋 API Response:', response);
+
 
           if (response.success && response.data) {
             // Backend returns: { success: true, data: { users: [...], pagination: {...} } }
@@ -1533,48 +1529,76 @@ const WelcomePage = () => {
 
       navigator.geolocation.getCurrentPosition(
         (position) => {
+          const accuracy = position.coords.accuracy;
+
+          // STRICT GPS VALIDATION - Only accept satellite GPS (accuracy ≤ 50m)
+          if (accuracy > 50) {
+            let title, text, icon, color;
+
+            if (accuracy > 1000) {
+              title = 'WiFi Location Detected';
+              text = `Accuracy: ${(accuracy/1000).toFixed(1)}km. This is WiFi/Network location, NOT GPS satellites. Go outdoors and enable High Accuracy GPS mode.`;
+              icon = 'error';
+              color = '#dc3545';
+            } else {
+              title = 'GPS Signal Too Weak';
+              text = `Accuracy: ${accuracy.toFixed(0)}m. Need ≤50m for exact location. Go outdoors with clear sky view and wait for satellite lock.`;
+              icon = 'warning';
+              color = '#ffc107';
+            }
+
+            Swal.fire({
+              icon: icon,
+              title: title,
+              text: text,
+              confirmButtonColor: color
+            });
+          }
+
           const currentPos = {
             latitude: position.coords.latitude,
             longitude: position.coords.longitude,
             accuracy: position.coords.accuracy
           };
 
-          console.log('📍 Current position:', currentPos);
-
           // Update map center to current location without affecting paths
           setCurrentLocation(currentPos);
 
-          // Show success message
+          // Show success message with accuracy info
           Swal.fire({
-            icon: 'success',
+            icon: accuracy <= 50 ? 'success' : 'info',
             title: 'Current Location Found',
-            text: `Latitude: ${currentPos.latitude.toFixed(6)}, Longitude: ${currentPos.longitude.toFixed(6)}`,
-            timer: 3000,
+            text: `Latitude: ${currentPos.latitude.toFixed(6)}, Longitude: ${currentPos.longitude.toFixed(6)}\nAccuracy: ${accuracy}m ${accuracy <= 50 ? '(GPS)' : '(Network)'}`,
+            timer: 4000,
             showConfirmButton: false
           });
 
           resolve(currentPos);
         },
         (error) => {
-          console.error('❌ Error getting current location:', error);
           Swal.fire({
             icon: 'error',
-            title: 'Location Error',
-            text: 'Could not get your current location. Please check location permissions.',
+            title: 'GPS Location Error',
+            text: 'Could not get exact GPS location. Please enable GPS, go outdoors, and check location permissions.',
             confirmButtonColor: '#dc3545'
           });
           reject(error);
         },
         {
-          enableHighAccuracy: true,
-          timeout: 10000,
-          maximumAge: 60000
+          enableHighAccuracy: true,  // Force GPS
+          timeout: 30000,           // Wait longer for GPS
+          maximumAge: 0             // No cached location
         }
       );
     });
   }, []);
 
-  // Enhanced GPS location with dynamic detection - NO HARDCODED LOCATIONS
+  // Show GPS setup instructions
+  const showGPSInstructions = () => {
+    alert(`📍 HOW TO GET EXACT GPS LOCATION\n\n🔧 DEVICE SETTINGS:\n• Enable Location Services\n• Set Location Mode to "High Accuracy" or "GPS Only"\n• Turn OFF WiFi scanning for location\n\n🌍 PHYSICAL REQUIREMENTS:\n• Go OUTDOORS (GPS doesn't work indoors)\n• Find open area with clear sky view\n• Stay away from tall buildings/trees\n\n⏱️ TIMING:\n• Wait 1-2 minutes for satellite lock\n• Don't move during GPS acquisition\n• Be patient - exact GPS takes time\n\n✅ SUCCESS INDICATORS:\n• Accuracy ≤ 50 meters\n• Location updates smoothly\n• Consistent coordinates\n\n❌ AVOID:\n• Indoor locations\n• WiFi-based location\n• Network/cellular location\n• Cached/old locations`);
+  };
+
+  // EXACT GPS LOCATION ONLY - No WiFi Network Locations
   const getCurrentLocation = useCallback(() => {
     return new Promise((resolve, reject) => {
       if (!navigator.geolocation) {
@@ -1582,65 +1606,64 @@ const WelcomePage = () => {
         return;
       }
 
-      console.log('🔍 Getting GPS location (starting with network, then upgrading to GPS)...');
-
-      // Try high accuracy GPS first, then fallback to network location
-      const getAccurateGPS = () => {
-        console.log('🛰️ Trying GPS positioning...');
-
+      // FORCE HIGH-ACCURACY GPS ONLY - Reject WiFi-based locations
+      const getExactGPS = () => {
         navigator.geolocation.getCurrentPosition(
           async (position) => {
-            console.log('📍 GPS location obtained with accuracy:', position.coords.accuracy + 'm');
+            const accuracy = position.coords.accuracy;
 
-            // Use the actual detected coordinates (accept any accuracy)
-            const lat = position.coords.latitude;
-            const lng = position.coords.longitude;
+            // STRICT GPS VALIDATION - Only accept satellite GPS (accuracy ≤ 50m)
+            if (accuracy > 50) {
+              let errorMsg = `❌ EXACT GPS REQUIRED\n\nCurrent accuracy: ${accuracy > 1000 ? (accuracy/1000).toFixed(1) + 'km' : accuracy.toFixed(0) + 'm'}\n\n`;
 
-            console.log('📍 Location detected:', lat, lng);
+              if (accuracy > 1000) {
+                errorMsg += `This is WiFi/Network location, NOT GPS satellites.\n\n`;
+              } else {
+                errorMsg += `GPS signal too weak for exact tracking.\n\n`;
+              }
 
-            // Process the GPS location
+              errorMsg += `REQUIRED: GPS accuracy ≤ 50m\n\nTo get EXACT GPS:\n• Go OUTDOORS (not indoors)\n• Enable HIGH ACCURACY GPS mode\n• Wait 1-2 minutes for satellite lock\n• Ensure clear sky view\n• Try again`;
+
+              alert(errorMsg);
+              reject(new Error(`GPS accuracy too low (${accuracy.toFixed(0)}m). Need ≤50m for exact location.`));
+              return;
+            }
+
+            // Show accuracy info to user
+            if (accuracy <= 10) {
+              alert(`✅ Excellent GPS Signal!\n\nAccuracy: ${accuracy}m\nThis is exact GPS location from satellites.`);
+            } else if (accuracy <= 50) {
+              alert(`✅ Good GPS Signal!\n\nAccuracy: ${accuracy}m\nThis is GPS location from satellites.`);
+            } else {
+              alert(`⚠️ Moderate GPS Signal\n\nAccuracy: ${accuracy}m\nFor better accuracy, go outdoors with clear sky view.`);
+            }
+
+            // Process the exact GPS location
             await processLocationData(position, true);
           },
           (error) => {
-            console.log('❌ High accuracy GPS failed, trying network location:', error.message);
-
-            // Fallback to network-based location (less accurate but more reliable)
-            navigator.geolocation.getCurrentPosition(
-              async (position) => {
-                console.log('📍 Network location obtained:', position.coords.accuracy + 'm accuracy');
-                await processLocationData(position, false);
-              },
-              (fallbackError) => {
-                console.log('❌ All location methods failed:', fallbackError.message);
-                let errorMessage = 'Location access failed: ';
-                switch (fallbackError.code) {
-                  case fallbackError.PERMISSION_DENIED:
-                    errorMessage += 'Please allow location access in your browser settings.';
-                    // Show location help dialog
-                    setTimeout(() => showLocationHelp(), 1000);
-                    break;
-                  case fallbackError.POSITION_UNAVAILABLE:
-                    errorMessage += 'Location information is unavailable.';
-                    break;
-                  case fallbackError.TIMEOUT:
-                    errorMessage += 'Location request timed out. Please try again.';
-                    break;
-                  default:
-                    errorMessage += fallbackError.message || 'Unknown error occurred.';
-                }
-                reject(new Error(errorMessage));
-              },
-              {
-                enableHighAccuracy: false,   // Use network location
-                timeout: 20000,              // Longer timeout for network location
-                maximumAge: 120000           // Allow cached location up to 2 minutes
-              }
-            );
+            let errorMessage = 'Exact GPS location failed: ';
+            switch (error.code) {
+              case error.PERMISSION_DENIED:
+                errorMessage += 'Location permission denied. Please:\n• Allow location access in browser\n• Enable GPS in device settings\n• Refresh the page and try again';
+                break;
+              case error.POSITION_UNAVAILABLE:
+                errorMessage += 'GPS satellites unavailable. Please:\n• Go outdoors for better satellite reception\n• Enable GPS/Location Services in device settings\n• Check if airplane mode is off';
+                break;
+              case error.TIMEOUT:
+                errorMessage += 'GPS timeout. Please:\n• Go outdoors with clear sky view\n• Wait longer for satellite connection\n• Ensure GPS is enabled in device settings';
+                break;
+              default:
+                errorMessage += 'GPS error occurred. Please check device GPS settings and try again.';
+                break;
+            }
+            alert(`❌ ${errorMessage}`);
+            reject(new Error(errorMessage));
           },
           {
-            enableHighAccuracy: true,    // Try GPS first
-            timeout: 30000,              // Longer timeout for GPS (30 seconds)
-            maximumAge: 60000            // Allow cached location up to 1 minute
+            enableHighAccuracy: true,  // FORCE GPS satellites only
+            timeout: 60000,           // Wait even longer for GPS (60 seconds)
+            maximumAge: 0             // NEVER use cached/old location
           }
         );
       };
@@ -1705,9 +1728,8 @@ const WelcomePage = () => {
         }
       };
 
-      // Start with accurate GPS directly
-      console.log('🔍 Starting GPS location detection...');
-      getAccurateGPS();
+      // Start exact GPS detection
+      getExactGPS();
     });
   }, [reverseGeocode]);
 
@@ -2080,7 +2102,7 @@ const WelcomePage = () => {
 
   // Handle QR code scanning with 16-digit code validation
   const handleQRCodeScan = useCallback((scannedCode) => {
-    console.log('🔍 Scanning QR code:', scannedCode);
+
 
     // Find QR code by 16-digit code
     const qrCode = generatedQRCodes.find(qr => qr.code === scannedCode);
@@ -2172,6 +2194,9 @@ const WelcomePage = () => {
     setScannedDeviceDetails(enhancedDeviceInfo);
     setShowScannedDeviceModal(true);
 
+    // Show loading message for GPS capture
+    alert('📍 Getting your current location as starting point...');
+
     // Save to scan history
     const scanHistory = JSON.parse(localStorage.getItem('qrScanHistory') || '[]');
     scanHistory.unshift({
@@ -2187,21 +2212,109 @@ const WelcomePage = () => {
 
     localStorage.setItem('qrScanHistory', JSON.stringify(scanHistory));
 
-    // 🚀 AUTO-OPEN QR-to-Postman tracker for manual entry (same as camera scan)
-    setTimeout(() => {
-      console.log('🚀 Auto-opening QR-to-Postman tracker for manual entry...');
+    // 🚀 GET EXACT GPS LOCATION AS STARTING POINT (NO WIFI)
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        async (position) => {
+          const accuracy = position.coords.accuracy;
 
-      // Create QR scan location data
-      const qrScanLocation = {
-        latitude: enhancedDeviceInfo.latitude || 14.4673,  // Use QR location or default
-        longitude: enhancedDeviceInfo.longitude || 78.8242,
-        timestamp: new Date().toISOString(),
-        deviceName: enhancedDeviceInfo.deviceName || 'Unknown Device',
-        scannedBy: userData?.username || 'Unknown'
-      };
+          // STRICT GPS VALIDATION FOR QR SCAN - Only accept satellite GPS (accuracy ≤ 50m)
+          if (accuracy > 50) {
+            let errorMsg = `❌ EXACT GPS REQUIRED FOR QR SCAN\n\nCurrent accuracy: ${accuracy > 1000 ? (accuracy/1000).toFixed(1) + 'km' : accuracy.toFixed(0) + 'm'}\n\n`;
+
+            if (accuracy > 1000) {
+              errorMsg += `This is WiFi/Network location, NOT GPS satellites.\n\n`;
+            } else {
+              errorMsg += `GPS signal too weak for exact starting point.\n\n`;
+            }
+
+            errorMsg += `REQUIRED: GPS accuracy ≤ 50m\n\nTo get EXACT starting point:\n• Go OUTDOORS (not indoors)\n• Enable HIGH ACCURACY GPS mode\n• Wait 1-2 minutes for satellite lock\n• Ensure clear sky view\n• Scan QR code again`;
+
+            alert(errorMsg);
+            return; // Cancel QR scan
+          }
+
+          const currentLocation = {
+            latitude: position.coords.latitude,
+            longitude: position.coords.longitude,
+            accuracy: position.coords.accuracy,
+            timestamp: new Date().toISOString(),
+            deviceName: enhancedDeviceInfo.deviceName || 'Unknown Device',
+            scannedBy: userData?.username || 'Unknown',
+            source: 'qr_scan_exact_gps'
+          };
+
+          // Show GPS accuracy confirmation
+          alert(`✅ Exact GPS Starting Point Captured!\n\nAccuracy: ${accuracy}m\nLocation: ${currentLocation.latitude.toFixed(6)}, ${currentLocation.longitude.toFixed(6)}\n\nThis is your exact GPS location from satellites.`);
+
+          // 🔥 SAVE TO GPS API AS STARTING POINT
+          try {
+            const token = localStorage.getItem('token');
+            const gpsResponse = await fetch('http://localhost:5001/api/gps/location', {
+              method: 'POST',
+              headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+              },
+              body: JSON.stringify({
+                deviceId: enhancedDeviceInfo.deviceId,
+                latitude: currentLocation.latitude,
+                longitude: currentLocation.longitude,
+                accuracy: currentLocation.accuracy,
+                deviceName: enhancedDeviceInfo.deviceName,
+                source: 'qr_scan_starting_point'
+              })
+            });
+
+            if (gpsResponse.ok) {
+              const gpsResult = await gpsResponse.json();
+              console.log('✅ QR scan starting location saved to GPS API:', gpsResult);
+            } else {
+              console.error('❌ Failed to save QR scan location to GPS API');
+            }
+          } catch (error) {
+            console.error('❌ Error saving QR scan location:', error);
+          }
+
+          // Continue with the rest of the QR scan process
+          continueQRScanProcess(enhancedDeviceInfo, currentLocation);
+        },
+        (error) => {
+          let errorMessage = 'Exact GPS location failed for QR scan: ';
+          switch (error.code) {
+            case error.PERMISSION_DENIED:
+              errorMessage += 'Location permission denied. Please enable location access and GPS in device settings.';
+              break;
+            case error.POSITION_UNAVAILABLE:
+              errorMessage += 'GPS satellites unavailable. Please go outdoors for better satellite reception.';
+              break;
+            case error.TIMEOUT:
+              errorMessage += 'GPS timeout. Please go outdoors with clear sky view and try again.';
+              break;
+            default:
+              errorMessage += 'GPS error occurred. Please check device GPS settings.';
+              break;
+          }
+          alert(`❌ ${errorMessage}\n\nQR scan cancelled. Please fix GPS issues and scan again for exact location.`);
+          return; // Don't use fallback - require exact GPS
+        },
+        {
+          enableHighAccuracy: true,  // FORCE GPS satellites only
+          timeout: 60000,           // Wait even longer for GPS (60 seconds)
+          maximumAge: 0             // NEVER use cached/old location
+        }
+      );
+    } else {
+      alert('❌ GPS Not Supported\n\nYour device does not support GPS location services.\n\nQR scan cancelled. Please use a device with GPS capability for exact location tracking.');
+      return; // Don't proceed without GPS capability
+    }
+
+    // Function to continue QR scan process after getting location
+    const continueQRScanProcess = (deviceInfo, qrScanLocation) => {
+      console.log('🚀 Continuing QR scan process with location:', qrScanLocation);
 
       // Extract clean device ID
-      let cleanDeviceId = enhancedDeviceInfo.deviceId;
+      let cleanDeviceId = deviceInfo.deviceId;
       if (typeof cleanDeviceId === 'object' && cleanDeviceId.deviceId) {
         cleanDeviceId = cleanDeviceId.deviceId;
       }
@@ -2209,11 +2322,13 @@ const WelcomePage = () => {
       console.log('🗺️ Opening tracker with manual entry:', { qrScanLocation, cleanDeviceId });
 
       // Set data and open tracker
-      setQrScanLocationData(qrScanLocation);
-      setTrackedDeviceId(cleanDeviceId);
-      setShowQRToPostmanTracker(true);
-      setShowScannedDeviceModal(false);
-    }, 2000);
+      setTimeout(() => {
+        setQrScanLocationData(qrScanLocation);
+        setTrackedDeviceId(cleanDeviceId);
+        setShowQRToPostmanTracker(true);
+        setShowScannedDeviceModal(false);
+      }, 2000);
+    };
   }, [generatedQRCodes, userData]);
 
   // View QR code in large modal (with security check)
@@ -2418,7 +2533,7 @@ const WelcomePage = () => {
     }
   }, []);
 
-  // Load device locations (using local data only - no server calls)
+  // Load device locations (from server GPS API)
   const loadDeviceLocations = useCallback(async (deviceId) => {
     try {
       console.log('📍 Loading locations for device:', deviceId);
@@ -2428,7 +2543,40 @@ const WelcomePage = () => {
         return;
       }
 
-      // Check local device locations first
+      // 🔥 FIRST: Load from GPS API server
+      try {
+        console.log('📡 Fetching from GPS API server...');
+        const response = await fetch(`http://localhost:5001/api/gps/path/${deviceId}`);
+
+        if (response.ok) {
+          const serverData = await response.json();
+          console.log('📡 Server GPS data:', serverData);
+
+          if (serverData.status === 'success' && serverData.data.pathPoints) {
+            const serverLocations = serverData.data.pathPoints.map(point => ({
+              latitude: point.latitude,
+              longitude: point.longitude,
+              timestamp: point.timestamp,
+              accuracy: point.accuracy || 10,
+              source: 'server_gps'
+            }));
+
+            console.log('✅ Loaded', serverLocations.length, 'locations from GPS server');
+
+            // Update device locations state
+            setDeviceLocations(prev => ({
+              ...prev,
+              [deviceId]: serverLocations
+            }));
+
+            return serverLocations;
+          }
+        }
+      } catch (serverError) {
+        console.log('⚠️ GPS server not available, checking local data:', serverError.message);
+      }
+
+      // FALLBACK: Check local device locations
       const localLocations = deviceLocations[deviceId];
       if (localLocations && localLocations.length > 0) {
         console.log(`✅ Found ${localLocations.length} local locations for device ${deviceId}`);
@@ -3043,10 +3191,11 @@ const WelcomePage = () => {
 
       .dashboard-sidebar {
         background-color: #ffffff;
-        border-radius: 12px;
-        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-        padding: 1rem;
-        height: calc(100vh - 90px);
+        border-radius: 0;
+        box-shadow: none;
+        padding: 0.5rem;
+        height: 100%;
+        margin-top: 0;
       }
 
       .sidebar-header {
@@ -3073,25 +3222,579 @@ const WelcomePage = () => {
       }
 
       .dashboard-content {
-        padding: 2rem;
+        padding: 1.5rem;
         display: flex;
         flex-direction: column;
         width: 100%;
-        max-width: 100%;
+        max-width: none;
         overflow-x: hidden;
         box-sizing: border-box;
+        background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%);
+        border-radius: 16px;
+        box-shadow: 0 4px 20px rgba(0,0,0,0.06);
+        margin-bottom: 1.5rem;
+        min-height: calc(100vh - 200px);
+        border: 1px solid rgba(0,0,0,0.05);
+        position: relative;
+        gap: 1.5rem;
       }
 
-      /* Responsive layout fixes */
+      .dashboard-content::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 4px;
+        background: linear-gradient(90deg, #4a148c, #7b1fa2, #9c27b0);
+        border-radius: 16px 16px 0 0;
+      }
+
+      .dashboard-content h2 {
+        margin-top: 0.5rem;
+        margin-bottom: 1rem;
+        color: #2c3e50;
+        font-weight: 600;
+      }
+
+      .dashboard-content .text-muted {
+        color: #6c757d !important;
+        margin-bottom: 1.5rem;
+      }
+
+      .dashboard-content .card {
+        border: none;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+        border-radius: 12px;
+        margin-bottom: 1rem;
+        width: 100%;
+        height: fit-content;
+        transition: all 0.3s ease;
+      }
+
+      .dashboard-content .card:hover {
+        box-shadow: 0 4px 16px rgba(0,0,0,0.1);
+        transform: translateY(-2px);
+      }
+
+      /* DYNAMIC GRID LAYOUT FOR CARDS */
+      .dashboard-content .dynamic-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+        gap: 1.5rem;
+        width: 100%;
+      }
+
+      .dashboard-content .dynamic-grid-small {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+        gap: 1rem;
+        width: 100%;
+      }
+
+      /* CONTENT SPACING UTILITIES */
+      .dashboard-content .content-section {
+        margin-bottom: 2rem;
+      }
+
+      .dashboard-content .content-section:last-child {
+        margin-bottom: 0;
+      }
+
+      /* RESPONSIVE TEXT SCALING */
       @media (max-width: 768px) {
+        .dashboard-content h2 {
+          font-size: 1.5rem;
+        }
+
+        .dashboard-content h4 {
+          font-size: 1.2rem;
+        }
+
+        .dashboard-content .dynamic-grid {
+          grid-template-columns: 1fr;
+          gap: 1rem;
+        }
+
+        .dashboard-content .dynamic-grid-small {
+          grid-template-columns: 1fr;
+          gap: 0.75rem;
+        }
+      }
+
+      .dashboard-content .btn {
+        border-radius: 8px;
+        font-weight: 500;
+        padding: 0.5rem 1rem;
+      }
+
+      /* DYNAMIC RESPONSIVE LAYOUT */
+      .dashboard-content .row {
+        margin: 0;
+        width: 100%;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 1rem;
+      }
+
+      .dashboard-content .col-md-6,
+      .dashboard-content .col-lg-4,
+      .dashboard-content .col-lg-6,
+      .dashboard-content .col-lg-8,
+      .dashboard-content .col-12 {
+        padding: 0;
+        flex: 1 1 auto;
+        min-width: 280px;
+      }
+
+      .dashboard-content .container,
+      .dashboard-content .container-fluid {
+        padding: 0;
+        margin: 0;
+        max-width: none;
+        width: 100%;
+      }
+
+      /* TABLES AND FORMS FULL WIDTH */
+      .dashboard-content .table-responsive {
+        width: 100% !important;
+        margin: 0 !important;
+      }
+
+      .dashboard-content table {
+        width: 100% !important;
+        table-layout: auto !important;
+      }
+
+      .dashboard-content .form-control,
+      .dashboard-content .form-select {
+        width: 100% !important;
+      }
+
+      /* CARDS STRETCH FULL WIDTH */
+      .dashboard-content .card {
+        width: 100% !important;
+        margin-left: 0 !important;
+        margin-right: 0 !important;
+      }
+
+      /* REMOVE BOOTSTRAP CONTAINER LIMITS */
+      .dashboard-content .d-flex {
+        width: 100% !important;
+      }
+
+      .dashboard-content .justify-content-between {
+        width: 100% !important;
+      }
+
+      /* FORCE ALL CONTENT TO STRETCH HORIZONTALLY */
+      .dashboard-content > * {
+        width: 100% !important;
+        max-width: none !important;
+      }
+
+      .dashboard-content .row > .col-md-6,
+      .dashboard-content .row > .col-lg-4,
+      .dashboard-content .row > .col-lg-6 {
+        flex: 1 1 auto !important;
+        max-width: none !important;
+      }
+
+      /* FULL WIDTH LAYOUTS */
+      .dashboard-content .row {
+        margin: 0;
+        width: 100%;
+      }
+
+      .dashboard-content .col-md-6,
+      .dashboard-content .col-lg-4,
+      .dashboard-content .col-lg-6,
+      .dashboard-content .col-lg-8 {
+        padding-left: 0.75rem;
+        padding-right: 0.75rem;
+      }
+
+      .dashboard-content .container-fluid {
+        padding: 0;
+        max-width: none;
+      }
+
+      /* TABLES FULL WIDTH */
+      .dashboard-content .table-responsive {
+        width: 100%;
+        margin: 0;
+      }
+
+      .dashboard-content table {
+        width: 100%;
+        margin-bottom: 0;
+      }
+
+      /* 🖥️ DESKTOP LAYOUT FIXES */
+      @media (min-width: 769px) {
+        /* Ensure sidebar stays beside content on desktop */
+        .container-fluid .row {
+          display: flex !important;
+          flex-wrap: nowrap !important;
+          align-items: stretch !important;
+        }
+
+        /* Keep flex layouts horizontal on desktop */
+        .d-flex.gap-2,
+        .d-flex.gap-3 {
+          flex-direction: row !important;
+        }
+
+        .btn-group {
+          flex-direction: row !important;
+          width: auto !important;
+        }
+
+        .btn-group .btn {
+          margin-bottom: 0 !important;
+        }
+
+        /* Ensure proper column layouts */
+        .col-md-3,
+        .col-md-4,
+        .col-md-6,
+        .col-md-9,
+        .col-lg-2,
+        .col-lg-10 {
+          position: relative !important;
+        }
+
+        /* Force sidebar to stay in place */
+        .col-md-3.d-md-block,
+        .col-lg-2.d-md-block {
+          display: block !important;
+          flex: 0 0 auto !important;
+          max-width: 280px !important;
+          min-width: 250px !important;
+        }
+
+        /* Force main content to take remaining space */
+        .col-md-9,
+        .col-lg-10 {
+          flex: 1 1 auto !important;
+          max-width: none !important;
+          width: 100% !important;
+          padding-left: 0.5rem !important;
+          padding-right: 0.5rem !important;
+        }
+
+        /* FORCE DASHBOARD TO USE FULL HORIZONTAL SPACE */
+        .col-md-9 .content-wrapper,
+        .col-lg-10 .content-wrapper {
+          width: 100% !important;
+          max-width: none !important;
+          padding: 0 !important;
+        }
+
+        /* ELIMINATE RIGHT SIDE GAP COMPLETELY */
+        .col-md-9,
+        .col-lg-10 {
+          padding-left: 0.5rem !important;
+          padding-right: 0.5rem !important;
+        }
+
         .dashboard-content {
-          padding: 1rem;
+          margin-left: 0 !important;
+          margin-right: 0 !important;
+          width: 100% !important;
+        }
+
+        /* FORCE CONTAINER TO USE FULL WIDTH */
+        .container-fluid .row {
+          margin-left: 0 !important;
+          margin-right: 0 !important;
+          width: 100% !important;
+        }
+
+        /* QUICK ACTIONS SIDEBAR LAYOUT */
+        .dashboard-content .d-flex {
+          flex-direction: row !important;
+          align-items: flex-start !important;
+          gap: 1.5rem !important;
+        }
+
+        /* DESKTOP: Make Recent Login History and content boxes wider */
+        @media (min-width: 769px) {
+          .row.g-3 > [class*="col-"] {
+            flex: 1 1 auto !important;
+            min-width: 280px !important;
+            
+            padding: 0 !important;
+          }
+
+          /* Make main content area use more space */
+          .dashboard-content .table-responsive {
+            width: 100% !important;
+            min-width: 600px !important;
+          }
+
+          /* Recent Login History card should be wider */
+          .dashboard-content .card {
+            width: 100% !important;
+            min-width: 00px !important;
+          }
+
+          /* ADMIN/SUPERADMIN: Fix statistics cards alignment */
+          .dashboard-content .d-flex.gap-3.mb-4 {
+            justify-content: space-between !important;
+            align-items: stretch !important;
+          }
+
+          .dashboard-content .d-flex.gap-3.mb-4 > div {
+            flex: 1 1 240px !important;
+            min-width: 240px !important;
+            max-width: 280px !important;
+          }
+        }
+
+        /* ADMIN/SUPERADMIN DASHBOARD: Better alignment without changing features */
+        @media (min-width: 769px) {
+          .dashboard-content .d-flex.gap-3.mb-4 {
+            justify-content: flex-start !important;
+            align-items: stretch !important;
+            gap: 1rem !important;
+          }
+
+          .dashboard-content .d-flex.gap-3.mb-4 > div {
+            flex: 1 1 auto !important;
+            min-width: 200px !important;
+            max-width: 300px !important;
+          }
+        }
+
+        /* ASSIGNED DEVICES DYNAMIC LAYOUT ONLY */
+        .row.g-3 {
+          display: flex !important;
+          flex-wrap: wrap !important;
+          gap: 1rem !important;
+          margin: 0 !important;
+        }
+
+        .row.g-3 > [class*="col-"] {
+          flex: 1 1 auto !important;
+          min-width: 280px !important;
+          max-width: 400px !important;
+          padding: 0 !important;
+        }
+      }
+
+      /* 📱 TABLET RESPONSIVE */
+      @media (max-width: 1024px) and (min-width: 769px) {
+        .dashboard-content .d-flex {
+          flex-direction: column !important;
+          gap: 1.5rem !important;
+        }
+
+        .dashboard-content .d-flex > div:first-child {
+          max-width: 100% !important;
+          min-width: 100% !important;
+        }
+
+        .dashboard-content .d-flex > div:last-child {
+          width: 100% !important;
+          max-width: 100% !important;
+          min-width: 100% !important;
+        }
+      }
+
+      /* 📱 MOBILE RESPONSIVE FIXES */
+      @media (max-width: 768px) {
+        .dashboard-navbar {
+          padding: 0.5rem 1rem !important;
+          height: 70px !important;
+        }
+
+
+
+        .dashboard-content {
+          padding: 1.5rem !important;
+          margin-bottom: 1rem !important;
+          border-radius: 12px !important;
+          box-shadow: 0 2px 12px rgba(0,0,0,0.08) !important;
+          min-height: 350px !important;
+        }
+
+        .dashboard-content::before {
+          height: 3px !important;
+          border-radius: 12px 12px 0 0 !important;
+        }
+
+        /* MOBILE: Stack Quick Actions below main content */
+        .dashboard-content .d-flex {
+          flex-direction: column !important;
+          gap: 1rem !important;
+        }
+
+        .dashboard-content .d-flex > div:first-child {
+          max-width: 100% !important;
+          min-width: 100% !important;
+        }
+
+        .dashboard-content .d-flex > div:last-child {
+          width: 100% !important;
+          max-width: 100% !important;
+          min-width: 100% !important;
+        }
+
+        .card-body {
+          padding: 1rem !important;
+        }
+
+        .card-header {
+          padding: 0.75rem 1rem !important;
+        }
+
+        /* Fix button groups on mobile ONLY */
+        .btn-group {
+          flex-direction: column !important;
+          width: 100% !important;
+        }
+
+        .btn-group .btn {
+          margin-bottom: 0.5rem !important;
+          border-radius: 8px !important;
+        }
+
+        /* Fix flex gaps on mobile ONLY - be more specific */
+        .card .d-flex.gap-2,
+        .modal .d-flex.gap-2 {
+          flex-direction: column !important;
+          gap: 0.5rem !important;
+        }
+
+        .card .d-flex.gap-3,
+        .modal .d-flex.gap-3 {
+          flex-direction: column !important;
+          gap: 0.75rem !important;
+        }
+
+        /* Make tables responsive */
+        .table-responsive {
+          font-size: 0.85rem !important;
+        }
+
+        /* Fix modal content on mobile */
+        .modal-dialog {
+          margin: 0.5rem !important;
+          max-width: calc(100% - 1rem) !important;
+        }
+
+        .modal-body {
+          padding: 1rem !important;
+        }
+
+        /* Fix form layouts on mobile */
+        .row .col-md-6,
+        .row .col-md-4,
+        .row .col-md-3 {
+          margin-bottom: 1rem !important;
+        }
+
+        /* Fix sidebar on mobile */
+        .dashboard-sidebar {
+          padding: 1rem !important;
+          margin-bottom: 1rem !important;
+        }
+
+        /* Fix navbar brand and buttons */
+        .navbar-brand {
+          font-size: 1.1rem !important;
+        }
+
+        .navbar .btn {
+          padding: 0.375rem 0.75rem !important;
+          font-size: 0.875rem !important;
+        }
+
+        /* Fix card layouts on mobile */
+        .card .row .col-md-3,
+        .card .row .col-md-4,
+        .card .row .col-md-6 {
+          margin-bottom: 0.75rem !important;
+        }
+
+        /* Fix text sizes on mobile */
+        h1 { font-size: 1.5rem !important; }
+        h2 { font-size: 1.4rem !important; }
+        h3 { font-size: 1.3rem !important; }
+        h4 { font-size: 1.2rem !important; }
+        h5 { font-size: 1.1rem !important; }
+
+        /* Fix QR code displays on mobile */
+        .qr-code-container {
+          max-width: 200px !important;
+          margin: 0 auto !important;
+        }
+
+        /* Fix map containers on mobile */
+        #simple-map-container,
+        .map-container {
+          height: 250px !important;
+        }
+
+        /* Fix button text wrapping */
+        .btn {
+          white-space: normal !important;
+          word-wrap: break-word !important;
+        }
+
+        /* Fix alert layouts */
+        .alert {
+          padding: 0.75rem !important;
+          font-size: 0.9rem !important;
+        }
+
+        /* Fix badge layouts */
+        .badge {
+          font-size: 0.75rem !important;
+          padding: 0.25rem 0.5rem !important;
         }
       }
 
       @media (max-width: 576px) {
+        .container-fluid {
+          padding: 0 !important;
+        }
+
         .dashboard-content {
-          padding: 0.5rem;
+          padding: 1rem !important;
+          margin-bottom: 0.75rem !important;
+          border-radius: 10px !important;
+          min-height: 300px !important;
+        }
+
+        .dashboard-content::before {
+          height: 2px !important;
+          border-radius: 10px 10px 0 0 !important;
+        }
+
+        .card {
+          margin-bottom: 1rem !important;
+          border-radius: 8px !important;
+        }
+
+        .btn-group .btn {
+          font-size: 0.8rem !important;
+          padding: 0.5rem !important;
+        }
+
+        .modal-dialog {
+          margin: 0.25rem !important;
+          max-width: calc(100% - 0.5rem) !important;
+        }
+
+        .table {
+          font-size: 0.75rem !important;
+        }
+
+        .form-control,
+        .form-select {
+          font-size: 0.9rem !important;
         }
       }
 
@@ -3703,12 +4406,18 @@ const WelcomePage = () => {
     // Stay on add-device tab to show the inline map
     setActiveTab('add-device');
 
-    // Get current GPS location and show on map
+    // Get exact GPS location and show on map
     if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
         async (position) => {
+          const accuracy = position.coords.accuracy;
+
+          // Validate GPS accuracy for device tracking
+          if (accuracy > 100) {
+            alert(`⚠️ GPS Accuracy Warning\n\nDetected accuracy: ${accuracy}m\n\nThis appears to be WiFi-based location. For exact device tracking:\n• Go outdoors\n• Enable GPS in device settings\n• Wait for satellite connection`);
+          }
+
           const { latitude, longitude } = position.coords;
-          console.log('📍 Current GPS location for existing device:', latitude, longitude);
 
           // Set current location to show on map
           setCurrentLocation({ latitude, longitude });
@@ -3778,10 +4487,24 @@ const WelcomePage = () => {
           });
         },
         (error) => {
-          console.error('❌ GPS location error for existing device:', error);
-          alert('Please enable location access to see the device on the map.');
+          let errorMessage = 'GPS location failed for device tracking: ';
+          switch (error.code) {
+            case error.PERMISSION_DENIED:
+              errorMessage += 'Please enable location access and GPS in device settings.';
+              break;
+            case error.POSITION_UNAVAILABLE:
+              errorMessage += 'GPS satellites unavailable. Please go outdoors.';
+              break;
+            case error.TIMEOUT:
+              errorMessage += 'GPS timeout. Please go outdoors with clear sky view.';
+              break;
+            default:
+              errorMessage += 'Please check device GPS settings.';
+              break;
+          }
+          alert(`❌ ${errorMessage}`);
         },
-        { enableHighAccuracy: true, timeout: 30000, maximumAge: 120000 }
+        { enableHighAccuracy: true, timeout: 45000, maximumAge: 0 }
       );
     } else {
       alert('GPS not supported on this device.');
@@ -4887,16 +5610,9 @@ const WelcomePage = () => {
       const startingLocation = await getCurrentLocationAsStartingPoint();
       await processQRCodeWithStartingPoint(data, startingLocation, scanMethod);
     } catch (error) {
-      console.warn('⚠️ Could not get current location, using default:', error);
-      // Use default location if GPS fails
-      const defaultLocation = {
-        latitude: 14.4673,
-        longitude: 78.8242,
-        accuracy: 10,
-        timestamp: new Date().toISOString(),
-        source: 'manual'
-      };
-      await processQRCodeWithStartingPoint(data, defaultLocation, scanMethod);
+      console.error('❌ Could not get exact GPS location:', error);
+      alert(`❌ GPS Location Required\n\n${error.message}\n\nQR code processing cancelled. Please fix GPS issues and try again for exact location tracking.`);
+      return; // Don't proceed without exact GPS
     }
   };
 
@@ -4912,16 +5628,21 @@ const WelcomePage = () => {
 
       navigator.geolocation.getCurrentPosition(
         (position) => {
+          const accuracy = position.coords.accuracy;
+
+          // Validate GPS accuracy for starting point
+          if (accuracy > 100) {
+            alert(`⚠️ Starting Point Accuracy Warning\n\nDetected accuracy: ${accuracy}m\n\nThis appears to be WiFi-based location. For exact starting point:\n• Go outdoors\n• Enable GPS in device settings\n• Wait for satellite connection`);
+          }
+
           const startingLocation = {
             latitude: position.coords.latitude,
             longitude: position.coords.longitude,
             accuracy: position.coords.accuracy,
             timestamp: new Date().toISOString(),
-            source: 'gps',
+            source: accuracy <= 100 ? 'exact_gps' : 'network_location',
             address: 'Getting address...' // Will be updated with reverse geocoding
           };
-
-          console.log('✅ Starting location captured:', startingLocation);
 
           // Get address for the starting location
           getAddressFromCoordinates(startingLocation.latitude, startingLocation.longitude)
@@ -4935,13 +5656,28 @@ const WelcomePage = () => {
             });
         },
         (error) => {
-          console.error('❌ Error getting current location:', error);
-          reject(error);
+          let errorMessage = 'GPS starting point failed: ';
+          switch (error.code) {
+            case error.PERMISSION_DENIED:
+              errorMessage += 'Please enable location access and GPS.';
+              break;
+            case error.POSITION_UNAVAILABLE:
+              errorMessage += 'GPS satellites unavailable. Please go outdoors.';
+              break;
+            case error.TIMEOUT:
+              errorMessage += 'GPS timeout. Please go outdoors with clear sky view.';
+              break;
+            default:
+              errorMessage += 'Please check device GPS settings.';
+              break;
+          }
+          console.error('❌', errorMessage);
+          reject(new Error(errorMessage));
         },
         {
-          enableHighAccuracy: true,
-          timeout: 10000,
-          maximumAge: 60000
+          enableHighAccuracy: true,  // Force GPS
+          timeout: 45000,           // Wait longer for GPS
+          maximumAge: 0             // No cached location
         }
       );
     });
@@ -5178,12 +5914,47 @@ const WelcomePage = () => {
     return () => clearInterval(pollInterval);
   }, [userData, allDevices]);
 
+  // Calendar-based location tracking (MOVED BEFORE useEffect)
+  const [selectedCalendarDate, setSelectedCalendarDate] = useState('');
+  const [calendarLocationHistory, setCalendarLocationHistory] = useState([]);
+  const [showCalendarView, setShowCalendarView] = useState(false);
+  const [loadingCalendarData, setLoadingCalendarData] = useState(false);
+  const [availableDates, setAvailableDates] = useState([]);
+
   // Load device locations from database when user logs in
   useEffect(() => {
     if (userData && userData.role === 'user' && allDevices.length > 0) {
       loadAllDeviceLocationsFromDatabase();
     }
   }, [userData, allDevices.length]);
+
+  // Auto-refresh GPS data when device is selected for tracking
+  useEffect(() => {
+    if (selectedDeviceForRealTimeTracking && showPathLines) {
+      const deviceId = selectedDeviceForRealTimeTracking.deviceId || selectedDeviceForRealTimeTracking.deviceCode;
+
+      console.log('🔄 Setting up auto-refresh for device:', deviceId);
+
+      // Initial load
+      loadDeviceLocations(deviceId);
+
+      // Set up auto-refresh every 5 seconds for real-time updates
+      const refreshInterval = setInterval(async () => {
+        console.log('🔄 Auto-refreshing GPS data for device:', deviceId);
+        await loadDeviceLocations(deviceId);
+
+        // Also refresh calendar data if date is selected
+        if (selectedCalendarDate) {
+          await loadLocationHistoryForDate(deviceId, selectedCalendarDate);
+        }
+      }, 5000); // Every 5 seconds for faster updates
+
+      return () => {
+        console.log('🛑 Stopping auto-refresh for device:', deviceId);
+        clearInterval(refreshInterval);
+      };
+    }
+  }, [selectedDeviceForRealTimeTracking, showPathLines, selectedCalendarDate]);
 
   // Load scan history when scan history section is accessed
   useEffect(() => {
@@ -5192,25 +5963,54 @@ const WelcomePage = () => {
     }
   }, [userData, activeTab]);
 
-  // Calendar-based location tracking
-  const [selectedCalendarDate, setSelectedCalendarDate] = useState('');
-  const [calendarLocationHistory, setCalendarLocationHistory] = useState([]);
-  const [showCalendarView, setShowCalendarView] = useState(false);
-  const [loadingCalendarData, setLoadingCalendarData] = useState(false);
-  const [availableDates, setAvailableDates] = useState([]);
-
   // Scan History states
   const [scanHistory, setScanHistory] = useState([]);
   const [loadingScanHistory, setLoadingScanHistory] = useState(false);
   const [scanHistoryError, setScanHistoryError] = useState('');
 
-  // Load location history for a specific date from database
+  // Load location history for a specific date from GPS API
   const loadLocationHistoryForDate = async (deviceId, selectedDate) => {
     try {
       setLoadingCalendarData(true);
-      console.log('📅 Loading location history from database for date:', selectedDate, 'device:', deviceId);
+      console.log('📅 Loading location history from GPS API for date:', selectedDate, 'device:', deviceId);
 
-      // Call API to get locations for specific date from location history database
+      // 🔥 FIRST: Try GPS API for path data
+      try {
+        const gpsResponse = await fetch(`http://localhost:5001/api/gps/path/${deviceId}`);
+
+        if (gpsResponse.ok) {
+          const gpsData = await gpsResponse.json();
+          console.log('📡 GPS API response:', gpsData);
+
+          if (gpsData.status === 'success' && gpsData.data.pathPoints) {
+            // Filter locations by selected date
+            const selectedDateStr = new Date(selectedDate).toDateString();
+            const filteredLocations = gpsData.data.pathPoints.filter(point => {
+              const pointDate = new Date(point.timestamp).toDateString();
+              return pointDate === selectedDateStr;
+            });
+
+            console.log('📅 Filtered locations for date:', filteredLocations.length, 'points');
+
+            if (filteredLocations.length > 0) {
+              const locations = filteredLocations.map(loc => ({
+                latitude: loc.latitude,
+                longitude: loc.longitude,
+                accuracy: loc.accuracy || 10,
+                timestamp: loc.timestamp,
+                source: 'gps_api'
+              }));
+
+              setCalendarLocationHistory(locations);
+              return locations;
+            }
+          }
+        }
+      } catch (gpsError) {
+        console.log('⚠️ GPS API failed, trying location history API:', gpsError.message);
+      }
+
+      // FALLBACK: Call location history API
       const response = await api.getLocationHistoryForDate(deviceId, selectedDate);
 
       if (response.success && response.locationHistory) {
@@ -6182,17 +6982,31 @@ const WelcomePage = () => {
 
     return (
       <div className="dashboard-content">
-        {/* Welcome Card */}
-        <Card className="shadow-sm mb-4">
-          <Card.Body>
-            <div className="d-flex justify-content-between align-items-center">
-              <div>
-                <h4 className="mb-2">
-                  Welcome, {userData.firstName}!
-                  <span className={`badge bg-${getRoleBadgeColor(userData.role)} ms-2`}>
-                    {getRoleIcon(userData.role)} {getRoleDisplay(userData.role)}
-                  </span>
-                </h4>
+        {/* Dynamic Two Column Layout: Main Content + Quick Actions Sidebar */}
+        <div className="d-flex flex-wrap" style={{
+          gap: '1.5rem',
+          alignItems: 'flex-start',
+          minHeight: '100%'
+        }}>
+
+          {/* Main Content Area - Dynamic Width */}
+          <div style={{
+            flex: '1 1 auto',
+            marginLeft: 0,
+            minWidth: '300px',
+            maxWidth: 'calc(100% - 320px)'
+          }}>
+            {/* Welcome Card */}
+            <Card className="shadow-sm mb-4">
+              <Card.Body>
+                <div className="d-flex justify-content-between align-items-center">
+                  <div>
+                    <h4 className="mb-2">
+                      Welcome, {userData.firstName}!
+                      <span className={`badge bg-${getRoleBadgeColor(userData.role)} ms-2`}>
+                        {getRoleIcon(userData.role)} {getRoleDisplay(userData.role)}
+                      </span>
+                    </h4>
                 <p className="text-muted mb-0">
                   Account Status: <span className="badge bg-success">Active</span>
                 </p>
@@ -6210,13 +7024,13 @@ const WelcomePage = () => {
 
         <Row className="g-3">
           {/* QR Code System Overview or Recent Logins */}
-          <Col lg={8}>
+          <Col lg={3}>
             {(userData.role === 'admin' || userData.role === 'superadmin') ? (
               <Card className="shadow-sm">
                 <Card.Body>
-                  <div className="d-flex justify-content-between align-items-center mb-4">
-                    <h5 className="mb-0">📊 GPSTracker Database Overview</h5>
-                    <div className="d-flex gap-2">
+                  <div className="d-flex justify-content-between align-items-center ">
+                    <h5 className="mb-0"> GPSTracker Overview</h5>
+                    <div className="d-flex ">
                       <Button
                         variant="outline-info"
                         size="sm"
@@ -6242,40 +7056,41 @@ const WelcomePage = () => {
                     </div>
                   </div>
 
-                  <Row className="g-3">
-                    <Col md={3}>
-                      <Card className="border-primary">
+                  {/* Statistics Cards - Keep Original Dynamic Layout */}
+                  <div className="d-flex gap-3 mb-4" style={{ flexWrap: 'wrap' }}>
+                    <div style={{ flex: '1 1 200px', minWidth: '200px' }}>
+                      <Card className="border-primary h-100">
                         <Card.Body className="text-center">
                           <h3 className="text-primary">{Array.isArray(allUsers) ? allUsers.length : 0}</h3>
                           <small className="text-muted">Total Users</small>
                         </Card.Body>
                       </Card>
-                    </Col>
-                    <Col md={3}>
-                      <Card className="border-success">
+                    </div>
+                    <div style={{ flex: '1 1 200px', minWidth: '200px' }}>
+                      <Card className="border-success h-100">
                         <Card.Body className="text-center">
                           <h3 className="text-success">{generatedQRCodes.filter(qr => qr.status === 'available').length}</h3>
                           <small className="text-muted">Available QR Codes</small>
                         </Card.Body>
                       </Card>
-                    </Col>
-                    <Col md={3}>
-                      <Card className="border-warning">
+                    </div>
+                    <div style={{ flex: '1 1 200px', minWidth: '200px' }}>
+                      <Card className="border-warning h-100">
                         <Card.Body className="text-center">
                           <h3 className="text-warning">{Array.isArray(allQRCodes) ? allQRCodes.length : 0}</h3>
                           <small className="text-muted">Assigned QR Codes</small>
                         </Card.Body>
                       </Card>
-                    </Col>
-                    <Col md={3}>
-                      <Card className="border-info">
+                    </div>
+                    <div style={{ flex: '1 1 200px', minWidth: '200px' }}>
+                      <Card className="border-info h-100">
                         <Card.Body className="text-center">
                           <h3 className="text-info">{Array.isArray(allUsers) ? allUsers.filter(user => user.role === 'admin' || user.role === 'superadmin').length : 0}</h3>
                           <small className="text-muted">Admin Users</small>
                         </Card.Body>
                       </Card>
-                    </Col>
-                  </Row>
+                    </div>
+                  </div>
 
                   <div className="mt-4">
                     <h6>Recent QR Code Activity</h6>
@@ -6357,14 +7172,24 @@ const WelcomePage = () => {
             )}
           </Col>
 
-          {/* Quick Actions */}
-          <Col lg={4}>
+        </Row>
+          </div>
+
+          {/* Quick Actions Sidebar - Dynamic Width */}
+          <div style={{
+            width: '300px',
+            minWidth: '280px',
+            maxWidth: '320px',
+            flexShrink: 0,
+            marginLeft: 0,
+            height: 'fit-content'
+          }}>
             <Card className="shadow-sm">
               <Card.Body>
                 <h5 className="mb-4">Quick Actions</h5>
                 <div className="d-grid gap-2">
-                  <Button 
-                    variant="outline-primary" 
+                  <Button
+                    variant="outline-primary"
                     onClick={() => setActiveTab('profile')}
                     className="d-flex align-items-center justify-content-start p-3"
                   >
@@ -6385,34 +7210,25 @@ const WelcomePage = () => {
                       <small className="text-muted">Manage security</small>
                     </div>
                   </Button>
+
                   <Button
                     variant="outline-success"
-                    onClick={() => {
-                      console.log('🧪 Dashboard QR Test button clicked');
-                      const testQRData = JSON.stringify({
-                        deviceId: "TEST-DASHBOARD-" + Date.now(),
-                        deviceName: "Test Device from Dashboard",
-                        assignedTo: userData.username,
-                        generatedAt: new Date().toISOString(),
-                        validUntil: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
-                        status: "approved"
-                      });
-                      console.log('🧪 Test QR Data:', testQRData);
-                      handleViewQRCode(testQRData);
-                    }}
+                    onClick={showGPSInstructions}
                     className="d-flex align-items-center justify-content-start p-3"
                   >
-                    <span className="me-2">🔍</span>
+                    <span className="me-2">📍</span>
                     <div className="text-start">
-                      <div>Test QR Code</div>
-                      <small className="text-muted">Debug QR modal</small>
+                      <div>GPS Setup Guide</div>
+                      <small className="text-muted">Get exact GPS location</small>
                     </div>
                   </Button>
+
                 </div>
               </Card.Body>
             </Card>
-          </Col>
-        </Row>
+          </div>
+
+        </div>
       </div>
     );
   };
@@ -7114,23 +7930,7 @@ Exported on: ${new Date().toLocaleString()}`;
                     <small className="text-success">
                       ✅ {userDevices.length} device(s) registered to your account
                     </small>
-                    <Button
-                      variant="outline-secondary"
-                      size="sm"
-                      onClick={() => {
-                        console.log('🔍 DEBUG: Current userDevices:', userDevices);
-                        console.log('🔍 DEBUG: Device structure:', userDevices.map(d => ({
-                          deviceId: d.deviceId,
-                          deviceCode: d.deviceCode,
-                          description: d.description,
-                          status: d.status
-                        })));
-                        alert(`Debug Info:\nTotal devices: ${userDevices.length}\nCheck console for details`);
-                      }}
-                      style={{ fontSize: '0.7rem', padding: '0.2rem 0.4rem' }}
-                    >
-                      🔍 Debug
-                    </Button>
+
                   </div>
                 )}
 
@@ -7443,16 +8243,22 @@ Exported on: ${new Date().toLocaleString()}`;
                   <Button
                     variant={showPathLines ? "success" : "outline-success"}
                     size="sm"
-                    onClick={() => {
+                    onClick={async () => {
                       setShowPathLines(true);
-                      // Also load device locations if needed
+                      // Force refresh device locations from GPS API
                       if (selectedDeviceForRealTimeTracking) {
-                        loadDeviceLocations(selectedDeviceForRealTimeTracking.deviceId);
+                        console.log('🔄 Force refreshing GPS data...');
+                        await loadDeviceLocations(selectedDeviceForRealTimeTracking.deviceId);
+
+                        // Also refresh calendar data if date is selected
+                        if (selectedCalendarDate) {
+                          await loadLocationHistoryForDate(selectedDeviceForRealTimeTracking.deviceId, selectedCalendarDate);
+                        }
                       }
                     }}
                     disabled={!selectedDeviceForRealTimeTracking}
                   >
-                    <SVGIcons.Location size={14} className="me-2" />Show Red Lines
+                    <SVGIcons.Location size={14} className="me-2" />🔄 Refresh & Show Red Lines
                   </Button>
                   <Button
                     variant={!showPathLines ? "danger" : "outline-danger"}
@@ -7483,53 +8289,7 @@ Exported on: ${new Date().toLocaleString()}`;
                     📊 {showHistorySection ? 'Hide' : 'Show'} History
                   </Button>
                   {/* Calendar button removed - functionality integrated into date range selection */}
-                  <Button
-                    variant="outline-warning"
-                    size="sm"
-                    onClick={async () => {
-                      if (selectedDeviceForRealTimeTracking) {
-                        const deviceId = selectedDeviceForRealTimeTracking.deviceId || selectedDeviceForRealTimeTracking.deviceCode;
-                        console.log('🧪 Adding test location for device:', deviceId);
 
-                        // Generate a random location near current position for testing
-                        const baseLatitude = 17.3850;
-                        const baseLongitude = 78.4867;
-                        const testLocation = {
-                          latitude: baseLatitude + (Math.random() - 0.5) * 0.01,
-                          longitude: baseLongitude + (Math.random() - 0.5) * 0.01,
-                          accuracy: 10,
-                          timestamp: new Date().toISOString(),
-                          source: 'manual'
-                        };
-
-                        try {
-                          console.log('🧪 Test location:', testLocation);
-                          await updateDeviceLocation(deviceId, testLocation);
-
-                          // Force map refresh
-                          setShowPathLines(true);
-
-                          Swal.fire({
-                            title: 'Test Location Added!',
-                            text: `Added test location: ${testLocation.latitude.toFixed(6)}, ${testLocation.longitude.toFixed(6)}`,
-                            icon: 'success',
-                            timer: 3000,
-                            showConfirmButton: false
-                          });
-                        } catch (error) {
-                          console.error('❌ Test location failed:', error);
-                          Swal.fire({
-                            title: 'Test Failed',
-                            text: 'Failed to add test location: ' + error.message,
-                            icon: 'error'
-                          });
-                        }
-                      }
-                    }}
-                    disabled={!selectedDeviceForRealTimeTracking}
-                  >
-                    🧪 Add Test Location
-                  </Button>
                 </div>
               </Card.Body>
             </Card>
@@ -8132,6 +8892,7 @@ Exported on: ${new Date().toLocaleString()}`;
                     <div style={{ fontSize: '4rem', marginBottom: '1rem', opacity: '0.5' }}>📱</div>
                     <h5>No Devices Assigned Yet</h5>
                     <p className="text-muted">Go to "Add My Device" to register your first device</p>
+
                     <Button
                       variant="primary"
                       onClick={() => setActiveTab('add-my-device')}
@@ -8141,9 +8902,26 @@ Exported on: ${new Date().toLocaleString()}`;
                     </Button>
                   </div>
                 ) : (
-                  <div className="row">
-                    {userDevices.map((device, index) => (
-                      <div key={index} className="col-md-6 col-lg-4 mb-4">
+                  <div className="row g-3">
+                    {userDevices.map((device, index) => {
+                      // Dynamic column calculation based on number of devices
+                      const deviceCount = userDevices.length;
+                      let colClass = '';
+
+                      if (deviceCount === 1) {
+                        colClass = 'col-12 col-md-8 col-lg-6'; // Single device - medium width
+                      } else if (deviceCount === 2) {
+                        colClass = 'col-12 col-md-6'; // Two devices - half width each
+                      } else if (deviceCount === 3) {
+                        colClass = 'col-12 col-md-6 col-lg-4'; // Three devices - third width each
+                      } else if (deviceCount === 4) {
+                        colClass = 'col-12 col-md-6 col-lg-3'; // Four devices - quarter width each
+                      } else if (deviceCount >= 5) {
+                        colClass = 'col-12 col-sm-6 col-md-4 col-lg-3 col-xl-2'; // Many devices - smaller cards
+                      }
+
+                      return (
+                        <div key={index} className={`${colClass} mb-3`}>
                         <Card className="h-100 shadow-sm" style={{ border: '1px solid #e9ecef', borderRadius: '12px' }}>
                           <Card.Body>
                             <div className="mb-3">
@@ -8245,12 +9023,18 @@ Exported on: ${new Date().toLocaleString()}`;
                                     const deviceKey = device.deviceCode || device.deviceId;
                                     console.log('🔑 Using device key:', deviceKey);
 
-                                    // Get current GPS location for this device
+                                    // Get exact GPS location for this device
                                     if (navigator.geolocation) {
                                       navigator.geolocation.getCurrentPosition(
                                         async (position) => {
+                                          const accuracy = position.coords.accuracy;
+
+                                          // Validate GPS accuracy for device tracking
+                                          if (accuracy > 100) {
+                                            alert(`⚠️ Device Tracking Accuracy Warning\n\nDetected accuracy: ${accuracy}m\n\nThis appears to be WiFi-based location. For exact device tracking:\n• Go outdoors\n• Enable GPS in device settings\n• Wait for satellite connection`);
+                                          }
+
                                           const { latitude, longitude } = position.coords;
-                                          console.log('📍 Got location for device:', deviceKey, latitude, longitude);
 
                                           // Save location to database via API
                                           const apiLocationData = {
@@ -8300,10 +9084,24 @@ Exported on: ${new Date().toLocaleString()}`;
                                           }, 100);
                                         },
                                         (error) => {
-                                          console.error('❌ GPS error:', error);
-                                          alert('Please enable location access to track this device.');
+                                          let errorMessage = 'GPS tracking failed: ';
+                                          switch (error.code) {
+                                            case error.PERMISSION_DENIED:
+                                              errorMessage += 'Please enable location access and GPS.';
+                                              break;
+                                            case error.POSITION_UNAVAILABLE:
+                                              errorMessage += 'GPS satellites unavailable. Please go outdoors.';
+                                              break;
+                                            case error.TIMEOUT:
+                                              errorMessage += 'GPS timeout. Please go outdoors with clear sky view.';
+                                              break;
+                                            default:
+                                              errorMessage += 'Please check device GPS settings.';
+                                              break;
+                                          }
+                                          alert(`❌ ${errorMessage}`);
                                         },
-                                        { enableHighAccuracy: true, timeout: 30000, maximumAge: 120000 }
+                                        { enableHighAccuracy: true, timeout: 45000, maximumAge: 0 }
                                       );
                                     } else {
                                       alert('GPS not supported on this device.');
@@ -8390,7 +9188,15 @@ Exported on: ${new Date().toLocaleString()}`;
                                         deviceName={`📱 ${device.description || device.deviceCode}`}
                                         height="200px"
                                         showControls={false}
-                                        locationHistory={device.trackingPath || deviceLocations[deviceKey] || []}
+                                        locationHistory={(() => {
+                                          const history = device.trackingPath || deviceLocations[deviceKey] || [];
+                                          console.log('🗺️ MAP DEBUG - Device:', deviceKey, 'History length:', history.length);
+                                          if (history.length > 0) {
+                                            console.log('🗺️ MAP DEBUG - First location:', history[0]);
+                                            console.log('🗺️ MAP DEBUG - Last location:', history[history.length - 1]);
+                                          }
+                                          return history;
+                                        })()}
                                         showPath={true}
                                       />
                                     </div>
@@ -8411,7 +9217,8 @@ Exported on: ${new Date().toLocaleString()}`;
                           </Card.Body>
                         </Card>
                       </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 )}
               </Card.Body>
@@ -9030,57 +9837,7 @@ Exported on: ${new Date().toLocaleString()}`;
                   >
                     📊 Login History
                   </Button>
-                  {(userData?.role === 'admin' || userData?.role === 'superadmin') && (
-                    <Button
-                      variant="outline-warning"
-                      size="lg"
-                      onClick={async () => {
-                        // Generate a test QR code for immediate testing
-                        const testCode = generate16DigitCode();
-                        const testDeviceInfo = {
-                          deviceId: testCode,
-                          deviceName: `Test GPS Tracker ${testCode.substring(0, 4)}`,
-                          deviceType: 'GPS Tracker',
-                          manufacturer: 'ADDWISE',
-                          model: 'GPS Tracker Pro',
-                          status: 'available',
-                          generatedAt: new Date().toISOString(),
-                          createdBy: userData.username
-                        };
 
-                        const qrImageData = await generateQRCodeImage(testCode);
-
-                        const testQRCode = {
-                          id: `TEST-QR-${Date.now()}`,
-                          code: testCode,
-                          deviceInfo: testDeviceInfo,
-                          status: 'available',
-                          createdAt: new Date().toISOString(),
-                          createdBy: userData.username,
-                          assignedTo: null,
-                          assignedAt: null,
-                          deviceDetails: testDeviceInfo,
-                          lastScanned: null,
-                          scanCount: 0,
-                          qrCodeImage: qrImageData
-                        };
-
-                        // Add to QR codes list
-                        const updatedQRCodes = [...generatedQRCodes, testQRCode];
-                        localStorage.setItem('generatedQRCodes', JSON.stringify(updatedQRCodes));
-                        setGeneratedQRCodes(updatedQRCodes);
-
-                        alert(`Test QR code generated!\nCode: ${testCode}\nYou can now scan this QR code to test the scanning functionality.`);
-                      }}
-                      style={{
-                        padding: '1rem 2rem',
-                        fontSize: '1.1rem',
-                        fontWeight: '600'
-                      }}
-                    >
-                      🧪 Generate Test QR
-                    </Button>
-                  )}
                 </div>
               </Card.Body>
             </Card>
@@ -10436,116 +11193,8 @@ Exported on: ${new Date().toLocaleString()}`;
             >
               🔄 Refresh Data
             </Button>
-            <Button
-              variant="outline-warning"
-              onClick={async () => {
-                const confirmMessage = `⚠️ WARNING: This will permanently delete ALL test and debug QR data!\n\nThis includes entries containing:\n- "test" or "testing"\n- "debug"\n- Any test entries\n\nAre you sure?`;
 
-                if (window.confirm(confirmMessage)) {
-                  try {
-                    const token = localStorage.getItem('token') || localStorage.getItem('authToken') || localStorage.getItem('accessToken');
 
-                    // Get all current data
-                    const response = await fetch('http://localhost:5001/api/devices/admin/user-uploads', {
-                      headers: { 'Authorization': `Bearer ${token}` }
-                    });
-
-                    if (response.ok) {
-                      const data = await response.json();
-
-                      if (data.success && data.uploads) {
-                        // Find test/debug entries
-                        const testEntries = data.uploads.filter(device => {
-                          const code = device.deviceCode?.toLowerCase() || '';
-                          const desc = device.description?.toLowerCase() || '';
-                          const purpose = device.purpose?.toLowerCase() || '';
-
-                          return code.includes('test') || code.includes('debug') ||
-                                 desc.includes('test') || desc.includes('debug') ||
-                                 purpose.includes('test') || purpose.includes('testing');
-                        });
-
-                        if (testEntries.length === 0) {
-                          alert('✅ No test/debug data found!');
-                          return;
-                        }
-
-                        // Delete each test entry
-                        let deleted = 0;
-                        for (const entry of testEntries) {
-                          try {
-                            const deleteResponse = await fetch(`http://localhost:5001/api/devices/${entry.id}`, {
-                              method: 'DELETE',
-                              headers: { 'Authorization': `Bearer ${token}` }
-                            });
-                            if (deleteResponse.ok) deleted++;
-                          } catch (e) {
-                            console.error('Delete failed:', e);
-                          }
-                        }
-
-                        alert(`🧹 Cleanup Complete!\n✅ Deleted: ${deleted}/${testEntries.length} test entries`);
-                        await loadAdminQRCodes(); // Refresh
-                      }
-                    }
-                  } catch (error) {
-                    alert(`❌ Cleanup failed: ${error.message}`);
-                  }
-                }
-              }}
-            >
-              🧹 Clean Test Data
-            </Button>
-            <Button
-              variant="outline-info"
-              onClick={async () => {
-                try {
-                  console.log('🧪 DEBUGGING: Testing all possible data sources...');
-
-                  // Test 1: Check localStorage
-                  const localData = localStorage.getItem('userDevices');
-                  console.log('🧪 localStorage userDevices:', localData);
-
-                  // Test 2: Check if user is logged in properly
-                  console.log('🧪 Current userData:', userData);
-                  console.log('🧪 User role:', userData?.role);
-                  console.log('🧪 Auth token exists:', !!localStorage.getItem('token'));
-
-                  // Test 3: Try to ping the server
-                  try {
-                    const pingResponse = await fetch('http://localhost:5001/api/users');
-                    console.log('🧪 Server ping status:', pingResponse.status);
-                  } catch (pingError) {
-                    console.log('🧪 Server ping failed:', pingError.message);
-                  }
-
-                  // Test 4: Try the API call manually
-                  await loadAdminQRCodes();
-
-                  alert('🧪 Debug complete! Check console for detailed information.');
-                } catch (error) {
-                  console.error('🧪 Debug failed:', error);
-                  alert(`🧪 Debug failed: ${error.message}`);
-                }
-              }}
-            >
-              🧪 Debug QR Data
-            </Button>
-            <Button
-              variant="outline-info"
-              onClick={async () => {
-                try {
-                  console.log('🧪 Testing QR database connectivity...');
-                  await loadAdminQRCodes();
-                  alert('✅ QR data refresh completed! Check console for details.');
-                } catch (error) {
-                  console.error('🧪 QR data test failed:', error);
-                  alert(`❌ QR data loading failed!\n\nError: ${error.message}\n\nCheck console for details.`);
-                }
-              }}
-            >
-              🧪 Test QR Data
-            </Button>
             <Button
               variant="outline-danger"
               onClick={async () => {
@@ -10641,82 +11290,7 @@ Exported on: ${new Date().toLocaleString()}`;
             >
               🗑️ Clean Unassigned QR Codes
             </Button>
-            <Button
-              variant="outline-success"
-              onClick={async () => {
-                try {
-                  // Show loading
-                  Swal.fire({
-                    title: 'Testing Email Configuration...',
-                    text: 'Please wait while we verify your email settings.',
-                    icon: 'info',
-                    allowOutsideClick: false,
-                    showConfirmButton: false,
-                    willOpen: () => {
-                      Swal.showLoading();
-                    }
-                  });
 
-                  const token = localStorage.getItem('token') || localStorage.getItem('authToken') || localStorage.getItem('accessToken');
-
-                  const response = await fetch('http://localhost:5001/api/email/test', {
-                    method: 'GET',
-                    headers: {
-                      'Authorization': `Bearer ${token}`
-                    }
-                  });
-
-                  const data = await response.json();
-
-                  if (data.success) {
-                    Swal.fire({
-                      icon: 'success',
-                      title: 'Email Configuration Test Passed!',
-                      html: `
-                        <div style="text-align: center; margin: 20px 0;">
-                          <p><strong>✅ Email system is ready to send QR codes!</strong></p>
-                          <hr>
-                          <p style="color: #28a745;">📧 Gmail connection verified</p>
-                          <p style="color: #28a745;">🔧 SMTP settings configured correctly</p>
-                          <p style="color: #28a745;">🚀 Ready to send emails</p>
-                        </div>
-                      `,
-                      confirmButtonColor: '#28a745'
-                    });
-                  } else {
-                    Swal.fire({
-                      icon: 'error',
-                      title: 'Email Configuration Test Failed!',
-                      html: `
-                        <div style="text-align: left; margin: 20px 0;">
-                          <p><strong>❌ Error:</strong> ${data.message}</p>
-                          <hr>
-                          <p><strong>🔧 Please check:</strong></p>
-                          <ul style="text-align: left;">
-                            <li>Gmail credentials in .env file</li>
-                            <li>App password (not regular password)</li>
-                            <li>2-Step Verification enabled</li>
-                            <li>Internet connection</li>
-                          </ul>
-                        </div>
-                      `,
-                      confirmButtonColor: '#dc3545'
-                    });
-                  }
-
-                } catch (error) {
-                  console.error('Email test error:', error);
-                  Swal.fire({
-                    icon: 'error',
-                    title: 'Email Test Failed',
-                    text: error.message || 'Failed to test email configuration. Please try again.',
-                    confirmButtonColor: '#dc3545'
-                  });
-                }
-              }}
-            >
-              📧 Test Email Config
-            </Button>
             <Button
               variant="success"
               onClick={async () => {
@@ -11119,25 +11693,7 @@ Exported on: ${new Date().toLocaleString()}`;
             >
               🏘️ Set Proddatur
             </Button>
-            <Button
-              variant="outline-info"
-              size="sm"
-              className="ms-2"
-              onClick={async () => {
-                setGpsError('');
-                alert('🔍 Starting enhanced GPS detection...\n\nThis will:\n• Try multiple location services\n• Show detailed GPS information\n• Detect location accuracy issues\n• Provide debugging information');
 
-                try {
-                  const location = await getCurrentLocation();
-                  console.log('Enhanced GPS result:', location);
-                } catch (error) {
-                  console.error('Enhanced GPS failed:', error);
-                  setGpsError(`Enhanced GPS failed: ${error.message}`);
-                }
-              }}
-            >
-              🔍 Debug GPS
-            </Button>
           </div>
         </div>
 
@@ -11700,95 +12256,7 @@ Exported on: ${new Date().toLocaleString()}`;
                     >
                       📤 Send QR Codes via Email
                     </Button>
-                    <Button
-                      variant="outline-info"
-                      size="lg"
-                      onClick={async () => {
-                        try {
-                          const { value: testEmail } = await Swal.fire({
-                            title: 'Send Test Email',
-                            input: 'email',
-                            inputLabel: 'Enter email address to receive test QR code:',
-                            inputPlaceholder: 'example@gmail.com',
-                            inputValue: 'suman.tati2005@gmail.com',
-                            showCancelButton: true,
-                            confirmButtonText: '📧 Send Test Email',
-                            cancelButtonText: '❌ Cancel',
-                            confirmButtonColor: '#17a2b8',
-                            inputValidator: (value) => {
-                              if (!value) {
-                                return 'Please enter an email address!';
-                              }
-                              if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) {
-                                return 'Please enter a valid email address!';
-                              }
-                            }
-                          });
 
-                          if (!testEmail) return;
-
-                          // Show loading
-                          Swal.fire({
-                            title: 'Sending Test Email...',
-                            text: 'Please wait while we send the test email.',
-                            icon: 'info',
-                            allowOutsideClick: false,
-                            showConfirmButton: false,
-                            willOpen: () => {
-                              Swal.showLoading();
-                            }
-                          });
-
-                          const token = localStorage.getItem('token') || localStorage.getItem('authToken') || localStorage.getItem('accessToken');
-
-                          const response = await fetch('http://localhost:5001/api/email/send-test', {
-                            method: 'POST',
-                            headers: {
-                              'Content-Type': 'application/json',
-                              'Authorization': `Bearer ${token}`
-                            },
-                            body: JSON.stringify({ testEmail })
-                          });
-
-                          const data = await response.json();
-
-                          if (data.success) {
-                            Swal.fire({
-                              icon: 'success',
-                              title: 'Test Email Sent!',
-                              html: `
-                                <div style="text-align: center; margin: 20px 0;">
-                                  <p><strong>📧 Email sent to:</strong> ${testEmail}</p>
-                                  <p><strong>📨 Message ID:</strong> ${data.emailResult.messageId}</p>
-                                  <hr>
-                                  <p style="color: #28a745;"><strong>✅ Check your inbox for the test QR code email!</strong></p>
-                                  <p style="color: #6c757d; font-size: 0.9em;">The email contains a sample QR code for testing purposes.</p>
-                                </div>
-                              `,
-                              confirmButtonColor: '#28a745'
-                            });
-                          } else {
-                            Swal.fire({
-                              icon: 'error',
-                              title: 'Test Email Failed',
-                              text: data.message || 'Failed to send test email. Please check your email configuration.',
-                              confirmButtonColor: '#dc3545'
-                            });
-                          }
-
-                        } catch (error) {
-                          console.error('Test email error:', error);
-                          Swal.fire({
-                            icon: 'error',
-                            title: 'Error Sending Test Email',
-                            text: error.message || 'An unexpected error occurred. Please try again.',
-                            confirmButtonColor: '#dc3545'
-                          });
-                        }
-                      }}
-                    >
-                      🧪 Send Test Email
-                    </Button>
                   </div>
                 </Form>
               </Card.Body>
@@ -14219,7 +14687,12 @@ Exported on: ${new Date().toLocaleString()}`;
 
       <div style={{ paddingTop: '80px', height: 'calc(100vh - 80px)' }}>
         <Container fluid style={{ height: '100%' }}>
-          <Row style={{ height: '100%', margin: 0 }}>
+          <Row style={{
+            height: '100%',
+            margin: 0,
+            display: 'flex',
+            flexWrap: window.innerWidth >= 768 ? 'nowrap' : 'wrap'
+          }}>
             {/* Mobile Sidebar Toggle */}
             <div className="d-md-none position-fixed" style={{
               top: '90px',
@@ -14250,14 +14723,17 @@ Exported on: ${new Date().toLocaleString()}`;
               style={{
                 height: '100%',
                 position: window.innerWidth < 768 ? 'fixed' : 'sticky',
-                top: '80px',
+                top: '0',
                 left: window.innerWidth < 768 ? (showMobileSidebar ? '0' : '-100%') : 'auto',
                 overflowY: 'auto',
                 padding: 0,
                 backgroundColor: '#fff',
                 borderRight: '1px solid #e9ecef',
                 zIndex: window.innerWidth < 768 ? 1040 : 'auto',
-                width: window.innerWidth < 768 ? '280px' : '280px',
+                width: window.innerWidth < 768 ? '280px' : 'auto',
+                maxWidth: window.innerWidth >= 768 ? '280px' : '280px',
+                minWidth: window.innerWidth >= 768 ? '250px' : '280px',
+                flex: window.innerWidth >= 768 ? '0 0 auto' : 'none',
                 transition: 'left 0.3s ease',
                 boxShadow: window.innerWidth < 768 ? '2px 0 10px rgba(0,0,0,0.1)' : 'none'
               }}
@@ -14303,26 +14779,27 @@ Exported on: ${new Date().toLocaleString()}`;
               md={9}
               lg={10}
               style={{
-                height: '100%',
+                height: '100vh',
                 overflowY: 'auto',
                 padding: window.innerWidth < 768 ? '0.5rem' : '1rem',
-                backgroundColor: '#f8f9fa'
+                backgroundColor: '#f8f9fa',
+                width: '100%',
+                maxWidth: '100%',
+                flex: window.innerWidth >= 768 ? '1 1 auto' : 'none'
               }}
             >
               <div className="content-wrapper" style={{
                 width: '100%',
-                maxWidth: '100%',
-                margin: '0 auto',
-                padding: '0',
-                boxSizing: 'border-box'
+                maxWidth: 'none',
+                padding: 0,
+                margin: 0,
+                boxSizing: 'border-box',
+                overflowX: 'hidden',
+                display: 'block',
+                minHeight: '100%',
+                flex: '1 1 auto'
               }}>
-                <div className="responsive-content" style={{
-                  width: '100%',
-                  maxWidth: '100%',
-                  overflow: 'hidden'
-                }}>
-                  {renderContent()}
-                </div>
+                {renderContent()}
               </div>
             </Col>
           </Row>

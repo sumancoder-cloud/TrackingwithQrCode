@@ -119,25 +119,42 @@ router.post('/location', (req, res) => {
   }
 });
 
-// GET /api/gps/device/:deviceId - Get current device location
-router.get('/device/:deviceId', (req, res) => {
+// GET /api/gps/device/:deviceId - Get current device location FROM DATABASE
+router.get('/device/:deviceId', async (req, res) => {
   try {
     const { deviceId } = req.params;
 
-    if (!deviceLocations[deviceId]) {
+    // 🔥 FETCH FROM DATABASE instead of memory
+    const latestLocation = await LocationHistory.findOne({ deviceId })
+      .sort({ timestamp: -1 })
+      .limit(1);
+
+    if (!latestLocation) {
       return res.status(404).json({
         status: 'error',
-        message: 'Device not found',
+        message: 'Device not found or no location data available',
         deviceId
       });
     }
 
+    const currentLocation = {
+      deviceId: latestLocation.deviceId,
+      deviceName: latestLocation.deviceName,
+      latitude: latestLocation.location.latitude,
+      longitude: latestLocation.location.longitude,
+      accuracy: latestLocation.location.accuracy,
+      speed: latestLocation.location.speed,
+      heading: latestLocation.location.heading,
+      timestamp: latestLocation.timestamp,
+      source: 'database'
+    };
+
     res.json({
       status: 'success',
       data: {
-        device: deviceLocations[deviceId],
-        pathPoints: devicePaths[deviceId] ? devicePaths[deviceId].length : 0,
-        lastUpdate: deviceLocations[deviceId].timestamp
+        device: currentLocation,
+        pathPoints: await LocationHistory.countDocuments({ deviceId }),
+        lastUpdate: currentLocation.timestamp
       }
     });
 
@@ -151,41 +168,76 @@ router.get('/device/:deviceId', (req, res) => {
   }
 });
 
-// GET /api/gps/path/:deviceId - Get device path history
-router.get('/path/:deviceId', (req, res) => {
+// GET /api/gps/path/:deviceId - Get device path history FROM DATABASE
+router.get('/path/:deviceId', async (req, res) => {
   try {
     const { deviceId } = req.params;
-    const { limit } = req.query;
+    const { limit = 100, startDate, endDate } = req.query;
 
-    if (!devicePaths[deviceId]) {
-      return res.status(404).json({
-        status: 'error',
-        message: 'No path data found for device',
-        deviceId
+    console.log('📍 Fetching path from database for device:', deviceId);
+
+    // Build query
+    let query = { deviceId };
+
+    // Add date range if provided
+    if (startDate || endDate) {
+      query.timestamp = {};
+      if (startDate) {
+        query.timestamp.$gte = new Date(startDate);
+      }
+      if (endDate) {
+        query.timestamp.$lte = new Date(endDate);
+      }
+    }
+
+    // 🔥 FETCH FROM DATABASE instead of memory
+    const locationHistory = await LocationHistory.find(query)
+      .sort({ timestamp: 1 }) // Chronological order for path
+      .limit(parseInt(limit));
+
+    if (locationHistory.length === 0) {
+      return res.json({
+        status: 'success',
+        data: {
+          deviceId,
+          pathPoints: [],
+          totalPoints: 0,
+          message: 'No path data available for this device'
+        }
       });
     }
 
-    let pathData = devicePaths[deviceId];
-    
-    // Apply limit if specified
-    if (limit) {
-      const limitNum = parseInt(limit);
-      pathData = pathData.slice(-limitNum);
-    }
+    // Convert database format to GPS API format
+    const pathPoints = locationHistory.map(loc => ({
+      deviceId: loc.deviceId,
+      deviceName: loc.deviceName,
+      latitude: loc.location.latitude,
+      longitude: loc.location.longitude,
+      accuracy: loc.location.accuracy,
+      speed: loc.location.speed,
+      heading: loc.location.heading,
+      timestamp: loc.timestamp,
+      source: 'database'
+    }));
+
+    console.log('✅ Fetched', pathPoints.length, 'path points from database');
 
     res.json({
       status: 'success',
       data: {
         deviceId,
-        pathPoints: pathData,
-        totalPoints: devicePaths[deviceId].length,
-        startTime: devicePaths[deviceId][0]?.timestamp,
-        endTime: devicePaths[deviceId][devicePaths[deviceId].length - 1]?.timestamp
+        pathPoints,
+        totalPoints: await LocationHistory.countDocuments({ deviceId }),
+        requestedLimit: parseInt(limit),
+        returnedPoints: pathPoints.length,
+        startTime: pathPoints[0]?.timestamp,
+        endTime: pathPoints[pathPoints.length - 1]?.timestamp,
+        dateRange: startDate || endDate ? { startDate, endDate } : null
       }
     });
 
   } catch (error) {
-    console.error('❌ GPS API Error:', error);
+    console.error('❌ GPS Path API Error:', error);
     res.status(500).json({
       status: 'error',
       message: 'Internal server error',
